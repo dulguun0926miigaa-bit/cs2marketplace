@@ -1,0 +1,257 @@
+version: '3.9'
+
+networks:
+  cs2-network:
+    driver: bridge
+
+volumes:
+  mysql-auth-data:
+  mysql-marketplace-data:
+  mysql-notification-data:
+  redis-data:
+  rabbitmq-data:
+  uploads-data:
+
+services:
+  # ─────────────────────────────────────────
+  # Infrastructure
+  # ─────────────────────────────────────────
+  mysql-auth:
+    image: mysql:8.0
+    container_name: cs2-mysql-auth
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpassword}
+      MYSQL_DATABASE: cs2_auth
+      MYSQL_USER: ${MYSQL_USER:-cs2user}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-cs2password}
+    volumes:
+      - mysql-auth-data:/var/lib/mysql
+    networks:
+      - cs2-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 10s
+      retries: 10
+
+  mysql-marketplace:
+    image: mysql:8.0
+    container_name: cs2-mysql-marketplace
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpassword}
+      MYSQL_DATABASE: cs2_marketplace
+      MYSQL_USER: ${MYSQL_USER:-cs2user}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-cs2password}
+    volumes:
+      - mysql-marketplace-data:/var/lib/mysql
+    networks:
+      - cs2-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 10s
+      retries: 10
+
+  mysql-notification:
+    image: mysql:8.0
+    container_name: cs2-mysql-notification
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpassword}
+      MYSQL_DATABASE: cs2_notification
+      MYSQL_USER: ${MYSQL_USER:-cs2user}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-cs2password}
+    volumes:
+      - mysql-notification-data:/var/lib/mysql
+    networks:
+      - cs2-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 10s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: cs2-redis
+    restart: unless-stopped
+    command: redis-server --requirepass ${REDIS_PASSWORD:-redispassword}
+    volumes:
+      - redis-data:/data
+    networks:
+      - cs2-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-redispassword}", "ping"]
+      timeout: 5s
+      retries: 10
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: cs2-rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-cs2rabbit}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-rabbitpassword}
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    ports:
+      - "15672:15672"
+    networks:
+      - cs2-network
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_port_connectivity"]
+      timeout: 10s
+      retries: 10
+
+  # ─────────────────────────────────────────
+  # Services
+  # ─────────────────────────────────────────
+  auth-service:
+    build:
+      context: ./services/auth-service
+      dockerfile: Dockerfile
+    container_name: cs2-auth-service
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      DATABASE_URL: mysql://${MYSQL_USER:-cs2user}:${MYSQL_PASSWORD:-cs2password}@mysql-auth:3306/cs2_auth
+      DATABASE_PROVIDER: mysql
+      JWT_SECRET: ${JWT_SECRET:-supersecretjwtkey}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-15m}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-supersecretrefreshkey}
+      JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN:-7d}
+      REDIS_URL: redis://:${REDIS_PASSWORD:-redispassword}@redis:6379
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-cs2rabbit}:${RABBITMQ_PASSWORD:-rabbitpassword}@rabbitmq:5672
+    depends_on:
+      mysql-auth:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - cs2-network
+
+  marketplace-service-1:
+    build:
+      context: ./services/marketplace-service
+      dockerfile: Dockerfile
+    container_name: cs2-marketplace-service-1
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3002
+      DATABASE_URL: mysql://${MYSQL_USER:-cs2user}:${MYSQL_PASSWORD:-cs2password}@mysql-marketplace:3306/cs2_marketplace
+      DATABASE_PROVIDER: mysql
+      REDIS_URL: redis://:${REDIS_PASSWORD:-redispassword}@redis:6379
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-cs2rabbit}:${RABBITMQ_PASSWORD:-rabbitpassword}@rabbitmq:5672
+      JWT_SECRET: ${JWT_SECRET:-supersecretjwtkey}
+    volumes:
+      - uploads-data:/app/uploads
+    depends_on:
+      mysql-marketplace:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - cs2-network
+
+  marketplace-service-2:
+    build:
+      context: ./services/marketplace-service
+      dockerfile: Dockerfile
+    container_name: cs2-marketplace-service-2
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3002
+      DATABASE_URL: mysql://${MYSQL_USER:-cs2user}:${MYSQL_PASSWORD:-cs2password}@mysql-marketplace:3306/cs2_marketplace
+      DATABASE_PROVIDER: mysql
+      REDIS_URL: redis://:${REDIS_PASSWORD:-redispassword}@redis:6379
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-cs2rabbit}:${RABBITMQ_PASSWORD:-rabbitpassword}@rabbitmq:5672
+      JWT_SECRET: ${JWT_SECRET:-supersecretjwtkey}
+    volumes:
+      - uploads-data:/app/uploads
+    depends_on:
+      mysql-marketplace:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - cs2-network
+
+  notification-service:
+    build:
+      context: ./services/notification-service
+      dockerfile: Dockerfile
+    container_name: cs2-notification-service
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3003
+      DATABASE_URL: mysql://${MYSQL_USER:-cs2user}:${MYSQL_PASSWORD:-cs2password}@mysql-notification:3306/cs2_notification
+      DATABASE_PROVIDER: mysql
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-cs2rabbit}:${RABBITMQ_PASSWORD:-rabbitpassword}@rabbitmq:5672
+      REDIS_URL: redis://:${REDIS_PASSWORD:-redispassword}@redis:6379
+    depends_on:
+      mysql-notification:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - cs2-network
+
+  api-gateway:
+    build:
+      context: ./services/api-gateway
+      dockerfile: Dockerfile
+    container_name: cs2-api-gateway
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      AUTH_SERVICE_URL: http://auth-service:3001
+      MARKETPLACE_SERVICE_URL: http://nginx:80/marketplace
+      NOTIFICATION_SERVICE_URL: http://notification-service:3003
+      JWT_SECRET: ${JWT_SECRET:-supersecretjwtkey}
+      REDIS_URL: redis://:${REDIS_PASSWORD:-redispassword}@redis:6379
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:5173,http://localhost}
+    depends_on:
+      - auth-service
+      - marketplace-service-1
+      - marketplace-service-2
+      - notification-service
+      - redis
+    networks:
+      - cs2-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: cs2-frontend
+    restart: unless-stopped
+    networks:
+      - cs2-network
+
+  nginx:
+    image: nginx:alpine
+    container_name: cs2-nginx
+    restart: unless-stopped
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "80:80"
+    depends_on:
+      - api-gateway
+      - frontend
+      - marketplace-service-1
+      - marketplace-service-2
+    networks:
+      - cs2-network

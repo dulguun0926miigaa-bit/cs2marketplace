@@ -1,0 +1,21 @@
+{
+  "name": "cs2-skin-marketplace",
+  "version": "1.0.0",
+  "description": "CS2 Skin Marketplace - Full Stack Microservice Application",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently --kill-others-on-fail --names \"GATEWAY,AUTH,MARKET,NOTIFY,FRONTEND\" --prefix-colors \"cyan,yellow,green,magenta,blue\" \"npm run dev --prefix services/api-gateway\" \"npm run dev --prefix services/auth-service\" \"npm run dev --prefix services/marketplace-service\" \"npm run dev --prefix services/notification-service\" \"npm run dev --prefix frontend\"",
+    "install:all": "npm install && npm install --prefix frontend && npm install --prefix services/api-gateway && npm install --prefix services/auth-service && npm install --prefix services/marketplace-service && npm install --prefix services/notification-service",
+    "infra:up": "docker compose -f docker-compose.infra.yml up -d",
+    "infra:down": "docker compose -f docker-compose.infra.yml down",
+    "db:migrate": "npm run db:migrate --prefix services/auth-service & npm run db:migrate --prefix services/marketplace-service & npm run db:migrate --prefix services/notification-service",
+    "db:seed": "node services/auth-service/prisma/seed.js & node services/marketplace-service/prisma/seed.js",
+    "setup": "npm run install:all && npm run infra:up",
+    "docker:up": "docker compose up --build",
+    "docker:down": "docker compose down",
+    "docker:clean": "docker compose down -v --remove-orphans"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

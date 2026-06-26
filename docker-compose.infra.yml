@@ -1,0 +1,106 @@
+version: '3.9'
+
+# Infrastructure ONLY - for local development
+# Run: docker compose -f docker-compose.infra.yml up -d
+
+networks:
+  cs2-network:
+    driver: bridge
+
+volumes:
+  mysql-auth-data:
+  mysql-marketplace-data:
+  mysql-notification-data:
+  redis-data:
+  rabbitmq-data:
+
+services:
+  mysql-auth:
+    image: mysql:8.0
+    container_name: cs2-mysql-auth
+    restart: unless-stopped
+    ports:
+      - "3307:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: cs2_auth
+      MYSQL_USER: cs2user
+      MYSQL_PASSWORD: cs2password
+    volumes:
+      - mysql-auth-data:/var/lib/mysql
+    networks:
+      - cs2-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-prootpassword"]
+      interval: 5s
+      timeout: 10s
+      retries: 15
+
+  mysql-marketplace:
+    image: mysql:8.0
+    container_name: cs2-mysql-marketplace
+    restart: unless-stopped
+    ports:
+      - "3308:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: cs2_marketplace
+      MYSQL_USER: cs2user
+      MYSQL_PASSWORD: cs2password
+    volumes:
+      - mysql-marketplace-data:/var/lib/mysql
+    networks:
+      - cs2-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-prootpassword"]
+      interval: 5s
+      timeout: 10s
+      retries: 15
+
+  mysql-notification:
+    image: mysql:8.0
+    container_name: cs2-mysql-notification
+    restart: unless-stopped
+    ports:
+      - "3309:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: cs2_notification
+      MYSQL_USER: cs2user
+      MYSQL_PASSWORD: cs2password
+    volumes:
+      - mysql-notification-data:/var/lib/mysql
+    networks:
+      - cs2-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-prootpassword"]
+      interval: 5s
+      timeout: 10s
+      retries: 15
+
+  redis:
+    image: redis:7-alpine
+    container_name: cs2-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    command: redis-server --requirepass redispassword
+    volumes:
+      - redis-data:/data
+    networks:
+      - cs2-network
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: cs2-rabbitmq
+    restart: unless-stopped
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: cs2rabbit
+      RABBITMQ_DEFAULT_PASS: rabbitpassword
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    networks:
+      - cs2-network

@@ -1,0 +1,915 @@
+openapi: 3.0.3
+info:
+  title: CS2 Skin Marketplace API
+  description: |
+    Full-stack microservice CS2 Skin Marketplace API.
+    All requests go through the API Gateway on port 3000.
+  version: 1.0.0
+  contact:
+    name: CS2 Marketplace
+servers:
+  - url: http://localhost:3000/api
+    description: Local development (API Gateway)
+
+tags:
+  - name: Auth
+    description: Authentication & user management
+  - name: Skins
+    description: Skin catalog operations
+  - name: Categories
+    description: Skin categories
+  - name: Cart
+    description: Shopping cart
+  - name: Wishlist
+    description: Wishlist management
+  - name: Orders
+    description: Order & checkout
+  - name: Notifications
+    description: User notifications
+  - name: Admin
+    description: Admin-only operations
+  - name: Wallet
+    description: User wallet & transactions
+  - name: Cases
+    description: Case opening
+  - name: Battles
+    description: Case battle system
+  - name: Trades
+    description: P2P trade offers
+  - name: Collections
+    description: Skin collections
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    User:
+      type: object
+      properties:
+        id: { type: integer }
+        email: { type: string }
+        username: { type: string }
+        firstName: { type: string, nullable: true }
+        lastName: { type: string, nullable: true }
+        avatar: { type: string, nullable: true }
+        isActive: { type: boolean }
+        isVerified: { type: boolean }
+        role: { type: string, enum: [Admin, User] }
+        createdAt: { type: string, format: date-time }
+
+    Skin:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        weapon: { type: string }
+        rarity:
+          type: string
+          enum: [CONSUMER, INDUSTRIAL, MIL_SPEC, RESTRICTED, CLASSIFIED, COVERT, CONTRABAND]
+        exterior:
+          type: string
+          enum: [FACTORY_NEW, MINIMAL_WEAR, FIELD_TESTED, WELL_WORN, BATTLE_SCARRED]
+        float: { type: number, format: float }
+        price: { type: number, format: decimal }
+        description: { type: string, nullable: true }
+        images: { type: array, items: { type: string } }
+        isAvailable: { type: boolean }
+        stock: { type: integer }
+        category: { $ref: '#/components/schemas/Category' }
+        createdAt: { type: string, format: date-time }
+
+    Category:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        slug: { type: string }
+        description: { type: string, nullable: true }
+        isActive: { type: boolean }
+
+    Order:
+      type: object
+      properties:
+        id: { type: integer }
+        userId: { type: integer }
+        status:
+          type: string
+          enum: [PENDING, PROCESSING, COMPLETED, CANCELLED, REFUNDED]
+        totalAmount: { type: number }
+        notes: { type: string, nullable: true }
+        orderItems:
+          type: array
+          items: { $ref: '#/components/schemas/OrderItem' }
+        payment: { $ref: '#/components/schemas/Payment' }
+        createdAt: { type: string, format: date-time }
+
+    OrderItem:
+      type: object
+      properties:
+        id: { type: integer }
+        skinId: { type: integer }
+        skin: { $ref: '#/components/schemas/Skin' }
+        quantity: { type: integer }
+        price: { type: number }
+
+    Payment:
+      type: object
+      properties:
+        id: { type: integer }
+        orderId: { type: integer }
+        amount: { type: number }
+        method: { type: string, enum: [CARD, PAYPAL, CRYPTO, BALANCE] }
+        status: { type: string, enum: [PENDING, COMPLETED, FAILED, REFUNDED] }
+
+    Notification:
+      type: object
+      properties:
+        id: { type: integer }
+        userId: { type: integer }
+        type: { type: string }
+        title: { type: string }
+        message: { type: string }
+        isRead: { type: boolean }
+        createdAt: { type: string, format: date-time }
+
+    Pagination:
+      type: object
+      properties:
+        page: { type: integer }
+        limit: { type: integer }
+        total: { type: integer }
+        totalPages: { type: integer }
+
+    SuccessResponse:
+      type: object
+      properties:
+        success: { type: boolean, example: true }
+        message: { type: string }
+        data: { type: object }
+
+    ErrorResponse:
+      type: object
+      properties:
+        success: { type: boolean, example: false }
+        message: { type: string }
+
+paths:
+  # ─── AUTH ─────────────────────────────────────────────────────────────────
+
+  /auth/register:
+    post:
+      tags: [Auth]
+      summary: Register a new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, username, password]
+              properties:
+                email: { type: string, format: email, example: user@cs2market.com }
+                username: { type: string, example: cs2player }
+                password: { type: string, example: Password1 }
+                firstName: { type: string, example: John }
+                lastName: { type: string, example: Doe }
+      responses:
+        '201':
+          description: User registered
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SuccessResponse' }
+        '409':
+          description: Email or username already exists
+        '422':
+          description: Validation error
+
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Login and receive tokens
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string }
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          user: { $ref: '#/components/schemas/User' }
+                          accessToken: { type: string }
+                          refreshToken: { type: string }
+        '401':
+          description: Invalid credentials
+
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      summary: Refresh access token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refreshToken]
+              properties:
+                refreshToken: { type: string }
+      responses:
+        '200': { description: Tokens refreshed }
+        '401': { description: Invalid refresh token }
+
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: Logout (revoke refresh token)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                refreshToken: { type: string }
+      responses:
+        '200': { description: Logged out }
+
+  /auth/forgot-password:
+    post:
+      tags: [Auth]
+      summary: Request password reset
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: { type: string, format: email }
+      responses:
+        '200': { description: Reset link sent (if email exists) }
+
+  /auth/reset-password:
+    post:
+      tags: [Auth]
+      summary: Reset password using token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token, password]
+              properties:
+                token: { type: string }
+                password: { type: string }
+      responses:
+        '200': { description: Password reset successfully }
+        '400': { description: Invalid or expired token }
+
+  /auth/profile:
+    get:
+      tags: [Auth]
+      summary: Get current user profile
+      security: [{ BearerAuth: [] }]
+      responses:
+        '200':
+          description: User profile
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SuccessResponse' }
+        '401': { description: Unauthorized }
+    put:
+      tags: [Auth]
+      summary: Update user profile
+      security: [{ BearerAuth: [] }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                firstName: { type: string }
+                lastName: { type: string }
+                avatar: { type: string, format: uri }
+      responses:
+        '200': { description: Profile updated }
+
+  /auth/logout-all:
+    post:
+      tags: [Auth]
+      summary: Logout from all sessions
+      security: [{ BearerAuth: [] }]
+      responses:
+        '200': { description: All sessions terminated }
+
+  /auth/admin/users:
+    get:
+      tags: [Auth, Admin]
+      summary: List all users (Admin)
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer, default: 1 }
+        - in: query
+          name: limit
+          schema: { type: integer, default: 20 }
+        - in: query
+          name: search
+          schema: { type: string }
+      responses:
+        '200': { description: Users list }
+        '403': { description: Admin only }
+
+  # ─── SKINS ────────────────────────────────────────────────────────────────
+
+  /marketplace/skins:
+    get:
+      tags: [Skins]
+      summary: Get all skins with filters, search, sort, pagination
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer, default: 1 }
+        - in: query
+          name: limit
+          schema: { type: integer, default: 20 }
+        - in: query
+          name: search
+          schema: { type: string }
+        - in: query
+          name: weapon
+          schema: { type: string }
+        - in: query
+          name: rarity
+          schema: { type: string, enum: [CONSUMER, INDUSTRIAL, MIL_SPEC, RESTRICTED, CLASSIFIED, COVERT, CONTRABAND] }
+        - in: query
+          name: exterior
+          schema: { type: string, enum: [FACTORY_NEW, MINIMAL_WEAR, FIELD_TESTED, WELL_WORN, BATTLE_SCARRED] }
+        - in: query
+          name: categoryId
+          schema: { type: integer }
+        - in: query
+          name: minPrice
+          schema: { type: number }
+        - in: query
+          name: maxPrice
+          schema: { type: number }
+        - in: query
+          name: sortBy
+          schema: { type: string, enum: [price, createdAt, name, float], default: createdAt }
+        - in: query
+          name: sortOrder
+          schema: { type: string, enum: [asc, desc], default: desc }
+      responses:
+        '200':
+          description: Paginated skins
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data: { type: array, items: { $ref: '#/components/schemas/Skin' } }
+                  pagination: { $ref: '#/components/schemas/Pagination' }
+
+    post:
+      tags: [Skins, Admin]
+      summary: Create a new skin (Admin)
+      security: [{ BearerAuth: [] }]
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [name, weapon, rarity, exterior, price, categoryId]
+              properties:
+                name: { type: string }
+                weapon: { type: string }
+                rarity: { type: string }
+                exterior: { type: string }
+                float: { type: number }
+                price: { type: number }
+                stock: { type: integer }
+                description: { type: string }
+                categoryId: { type: integer }
+                isAvailable: { type: boolean }
+                images:
+                  type: array
+                  items: { type: string, format: binary }
+      responses:
+        '201': { description: Skin created }
+        '403': { description: Admin only }
+
+  /marketplace/skins/popular:
+    get:
+      tags: [Skins]
+      summary: Get popular skins (cached)
+      responses:
+        '200': { description: Popular skins list }
+
+  /marketplace/skins/latest:
+    get:
+      tags: [Skins]
+      summary: Get latest skins (cached)
+      responses:
+        '200': { description: Latest skins list }
+
+  /marketplace/skins/{id}:
+    get:
+      tags: [Skins]
+      summary: Get skin by ID
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        '200': { description: Skin detail }
+        '404': { description: Skin not found }
+    put:
+      tags: [Skins, Admin]
+      summary: Update skin (Admin)
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+                price: { type: number }
+                stock: { type: integer }
+                isAvailable: { type: boolean }
+      responses:
+        '200': { description: Skin updated }
+    delete:
+      tags: [Skins, Admin]
+      summary: Delete skin (Admin)
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        '200': { description: Skin deleted }
+
+  # ─── CATEGORIES ───────────────────────────────────────────────────────────
+
+  /marketplace/categories:
+    get:
+      tags: [Categories]
+      summary: Get all categories
+      responses:
+        '200': { description: Categories list }
+    post:
+      tags: [Categories, Admin]
+      summary: Create category (Admin)
+      security: [{ BearerAuth: [] }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string }
+                description: { type: string }
+      responses:
+        '201': { description: Category created }
+
+  /marketplace/categories/{id}:
+    get:
+      tags: [Categories]
+      summary: Get category by ID
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        '200': { description: Category }
+    put:
+      tags: [Categories, Admin]
+      summary: Update category (Admin)
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+                description: { type: string }
+                isActive: { type: boolean }
+      responses:
+        '200': { description: Category updated }
+    delete:
+      tags: [Categories, Admin]
+      summary: Delete category (Admin)
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        '200': { description: Category deleted }
+
+  # ─── CART ─────────────────────────────────────────────────────────────────
+
+  /marketplace/cart:
+    get:
+      tags: [Cart]
+      summary: Get current user cart
+      security: [{ BearerAuth: [] }]
+      responses:
+        '200': { description: Cart items and total }
+    delete:
+      tags: [Cart]
+      summary: Clear entire cart
+      security: [{ BearerAuth: [] }]
+      responses:
+        '200': { description: Cart cleared }
+
+  /marketplace/cart/items:
+    post:
+      tags: [Cart]
+      summary: Add item to cart
+      security: [{ BearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [skinId]
+              properties:
+                skinId: { type: integer }
+                quantity: { type: integer, default: 1 }
+      responses:
+        '200': { description: Item added }
+        '400': { description: Insufficient stock }
+
+  /marketplace/cart/items/{skinId}:
+    put:
+      tags: [Cart]
+      summary: Update cart item quantity
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - in: path
+          name: skinId
+          required: true
+          schema: { type: integer }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                quantity: { type: integer }
+      responses:
+        '200': { description: Cart updated }
+    delete:
+      tags: [Cart]
+      summary: Remove item from cart
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - in: path
+          name: skinId
+          required: true
+          schema: { type: integer }
+      responses:
+        '200': { description: Item removed }
+
+  # ─── WISHLIST ─────────────────────────────────────────────────────────────
+
+  /marketplace/wishlist:
+    get:
+      tags: [Wishlist]
+      summary: Get user wishlist
+      security: [{ BearerAuth: [] }]
+      responses:
+        '200': { description: Wishlist items }
+
+  /marketplace/wishlist/{skinId}:
+    post:
+      tags: [Wishlist]
+      summary: Toggle skin in wishlist (add/remove)
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - in: path
+          name: skinId
+          required: true
+          schema: { type: integer }
+      responses:
+        '200': { description: Toggled }
+    delete:
+      tags: [Wishlist]
+      summary: Remove from wishlist
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - in: path
+          name: skinId
+          required: true
+          schema: { type: integer }
+      responses:
+        '200': { description: Removed }
+
+  # ─── ORDERS ───────────────────────────────────────────────────────────────
+
+  /marketplace/orders/checkout:
+    post:
+      tags: [Orders]
+      summary: Checkout (create order from cart)
+      security: [{ BearerAuth: [] }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                notes: { type: string }
+      responses:
+        '201': { description: Order created }
+        '400': { description: Cart empty or insufficient stock }
+
+  /marketplace/orders:
+    get:
+      tags: [Orders]
+      summary: Get my orders
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer }
+        - in: query
+          name: limit
+          schema: { type: integer }
+      responses:
+        '200': { description: Orders list }
+
+  /marketplace/orders/{id}:
+    get:
+      tags: [Orders]
+      summary: Get order by ID
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        '200': { description: Order detail }
+        '404': { description: Not found }
+
+  /marketplace/orders/{id}/cancel:
+    patch:
+      tags: [Orders]
+      summary: Cancel an order
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        '200': { description: Order cancelled }
+        '400': { description: Cannot cancel at current status }
+
+  /marketplace/orders/{id}/payment:
+    post:
+      tags: [Orders]
+      summary: Process payment for an order
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [method]
+              properties:
+                method: { type: string, enum: [CARD, PAYPAL, CRYPTO, BALANCE] }
+                transactionId: { type: string }
+      responses:
+        '200': { description: Payment processed }
+
+  # ─── ADMIN ────────────────────────────────────────────────────────────────
+
+  /marketplace/admin/dashboard:
+    get:
+      tags: [Admin]
+      summary: Get dashboard statistics (cached)
+      security: [{ BearerAuth: [] }]
+      responses:
+        '200':
+          description: Dashboard stats
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  totalRevenue: { type: number }
+                  completedOrders: { type: integer }
+                  totalSkins: { type: integer }
+                  totalOrders: { type: integer }
+
+  /marketplace/admin/orders:
+    get:
+      tags: [Admin]
+      summary: Get all orders (Admin)
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer }
+        - in: query
+          name: status
+          schema: { type: string }
+      responses:
+        '200': { description: All orders }
+
+  # ─── NOTIFICATIONS ────────────────────────────────────────────────────────
+
+  /notification:
+    get:
+      tags: [Notifications]
+      summary: Get my notifications
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer }
+        - in: query
+          name: limit
+          schema: { type: integer }
+      responses:
+        '200': { description: Notifications list }
+
+  /notification/{id}/read:
+    patch:
+      tags: [Notifications]
+      summary: Mark notification as read
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        '200': { description: Marked as read }
+
+  /notification/read-all:
+    patch:
+      tags: [Notifications]
+      summary: Mark all notifications as read
+      security: [{ BearerAuth: [] }]
+      responses:
+        '200': { description: All marked as read }
+
+  # ─── WALLET ─────────────────────────────────────────────────────────────
+
+  /marketplace/wallet/balance:
+    get:
+      tags: [Wallet]
+      summary: Get wallet balance
+      security: [{ BearerAuth: [] }]
+      responses:
+        '200': { description: Current balance }
+
+  /marketplace/wallet/transactions:
+    get:
+      tags: [Wallet]
+      summary: Transaction history
+      security: [{ BearerAuth: [] }]
+      responses:
+        '200': { description: Paginated transactions }
+
+  /marketplace/wallet/deposit:
+    post:
+      tags: [Wallet]
+      summary: Create deposit session
+      security: [{ BearerAuth: [] }]
+      responses:
+        '201': { description: Deposit session created }
+
+  # ─── BATTLES ────────────────────────────────────────────────────────────
+
+  /marketplace/battles:
+    get:
+      tags: [Battles]
+      summary: List battles
+      responses:
+        '200': { description: Battle list }
+    post:
+      tags: [Battles]
+      summary: Create a battle
+      security: [{ BearerAuth: [] }]
+      responses:
+        '201': { description: Battle created }
+
+  /marketplace/battles/{id}/join:
+    post:
+      tags: [Battles]
+      summary: Join a battle
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        '200': { description: Joined battle }
+
+  /marketplace/battles/rankings:
+    get:
+      tags: [Battles]
+      summary: Player rankings
+      responses:
+        '200': { description: Rankings list }
+
+  # ─── TRADES ─────────────────────────────────────────────────────────────
+
+  /marketplace/trades:
+    post:
+      tags: [Trades]
+      summary: Create trade offer
+      security: [{ BearerAuth: [] }]
+      responses:
+        '201': { description: Trade offer sent }
+
+  /marketplace/trades/incoming:
+    get:
+      tags: [Trades]
+      summary: Incoming trade offers
+      security: [{ BearerAuth: [] }]
+      responses:
+        '200': { description: Incoming offers }
+
+  /marketplace/trades/{id}/accept:
+    post:
+      tags: [Trades]
+      summary: Accept trade offer
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        '200': { description: Trade accepted }
+
+  # ─── COLLECTIONS ────────────────────────────────────────────────────────
+
+  /marketplace/collections:
+    get:
+      tags: [Collections]
+      summary: List all collections
+      responses:
+        '200': { description: Collections list }
+
+  # ─── HEALTH ───────────────────────────────────────────────────────────────
+
+  /health:
+    get:
+      tags: [Auth]
+      summary: API Gateway health check
+      responses:
+        '200': { description: Gateway is up }

@@ -1,0 +1,39 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-loot-bg text-loot-text font-sans antialiased;
+  }
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { @apply bg-loot-bg; }
+  ::-webkit-scrollbar-thumb { @apply bg-loot-border rounded-full; }
+}
+
+@layer components {
+  .btn-loot-primary {
+    @apply bg-loot-accent hover:bg-white text-black font-semibold px-6 py-3 rounded-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .btn-loot-secondary {
+    @apply bg-transparent border border-loot-border hover:border-loot-muted text-loot-text font-semibold px-6 py-3 rounded-xl transition-all duration-200;
+  }
+  .loot-card {
+    @apply bg-loot-card border border-loot-border rounded-xl;
+  }
+  .loot-input {
+    @apply bg-loot-surface border border-loot-border text-white placeholder-loot-muted rounded-xl px-4 py-3 w-full focus:outline-none focus:border-loot-muted transition-colors;
+  }
+  .rarity-bar-mil { @apply bg-rarity-mil; }
+  .rarity-bar-restricted { @apply bg-rarity-restricted; }
+  .rarity-bar-classified { @apply bg-rarity-classified; }
+  .rarity-bar-covert { @apply bg-rarity-covert; }
+  .rarity-bar-gold { @apply bg-rarity-gold; }
+  .rarity-glow-mil { box-shadow: 0 0 30px rgba(75, 105, 255, 0.3); }
+  .rarity-glow-restricted { box-shadow: 0 0 30px rgba(136, 71, 255, 0.3); }
+  .rarity-glow-classified { box-shadow: 0 0 30px rgba(211, 44, 230, 0.3); }
+  .rarity-glow-covert { box-shadow: 0 0 30px rgba(235, 75, 75, 0.3); }
+  .rarity-glow-gold { box-shadow: 0 0 30px rgba(245, 197, 24, 0.4); }
+}

@@ -1,0 +1,373 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Category {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  slug        String   @unique
+  description String?
+  imageUrl    String?
+  itemType    String   @default("WEAPON")
+  isActive    Boolean  @default(true)
+  skins       Skin[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([slug])
+  @@index([itemType])
+}
+
+model Collection {
+  id          Int       @id @default(autoincrement())
+  name        String    @unique
+  slug        String    @unique
+  description String?
+  imageUrl    String?
+  releaseDate DateTime?
+  isActive    Boolean   @default(true)
+  skins       Skin[]
+  cases       Case[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([slug])
+}
+
+model Skin {
+  id              Int                 @id @default(autoincrement())
+  name            String
+  weapon          String
+  rarity          String              @default("CONSUMER")
+  exterior        String              @default("FACTORY_NEW")
+  float           Float               @default(0.0)
+  floatMin        Float               @default(0.0)
+  floatMax        Float               @default(1.0)
+  pattern         String?
+  patternIndex    Int?
+  price           Float
+  description     String?
+  lore            String?
+  images          String              @default("[]")
+  isAvailable     Boolean             @default(true)
+  stock           Int                 @default(0)
+  isStatTrak      Boolean             @default(false)
+  isSouvenir      Boolean             @default(false)
+  sellerId        Int?
+  sellerName      String              @default("CS2 Market")
+  inspectLink     String?
+  popularity      Int                 @default(0)
+  releaseDate     DateTime?
+  categoryId      Int
+  category        Category            @relation(fields: [categoryId], references: [id])
+  collectionId    Int?
+  collection      Collection?         @relation(fields: [collectionId], references: [id])
+  orderItems      OrderItem[]
+  wishlistItems   WishlistItem[]
+  cartItems       CartItem[]
+  caseItems       CaseItem[]
+  inventoryItems  UserInventoryItem[]
+  recentDrops     RecentDrop[]
+  caseOpenings    CaseOpeningHistory[]
+  battleRounds    BattleRound[]
+  tradeItems      TradeItem[]
+  recentlyViewed  RecentlyViewed[]
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  @@index([weapon])
+  @@index([rarity])
+  @@index([exterior])
+  @@index([price])
+  @@index([categoryId])
+  @@index([collectionId])
+  @@index([isStatTrak])
+  @@index([isSouvenir])
+  @@index([isAvailable])
+  @@index([popularity])
+  @@index([createdAt])
+  @@index([name, weapon])
+}
+
+model Case {
+  id             Int                  @id @default(autoincrement())
+  name           String               @unique
+  slug           String               @unique
+  description    String?
+  imageUrl       String?
+  bannerUrl      String?
+  animationUrl   String?
+  price          Float
+  isActive       Boolean              @default(true)
+  isFeatured     Boolean              @default(false)
+  collectionId   Int?
+  collection     Collection?          @relation(fields: [collectionId], references: [id])
+  caseItems      CaseItem[]
+  openingHistory CaseOpeningHistory[]
+  battles        Battle[]
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+
+  @@index([slug])
+  @@index([isFeatured])
+}
+
+model CaseItem {
+  id        Int      @id @default(autoincrement())
+  caseId    Int
+  case      Case     @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  skinId    Int
+  skin      Skin     @relation(fields: [skinId], references: [id])
+  dropRate  Float
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([caseId, skinId])
+}
+
+model CaseOpeningHistory {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  caseId    Int
+  case      Case     @relation(fields: [caseId], references: [id])
+  skinId    Int
+  skin      Skin     @relation(fields: [skinId], references: [id])
+  price     Float
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([caseId])
+  @@index([createdAt])
+}
+
+model UserInventoryItem {
+  id         Int         @id @default(autoincrement())
+  userId     Int
+  skinId     Int
+  skin       Skin        @relation(fields: [skinId], references: [id])
+  source     String      @default("CASE_OPEN")
+  status     String      @default("ACTIVE")
+  wonPrice   Float?
+  tradeItems TradeItem[]
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+
+  @@index([userId])
+  @@index([status])
+}
+
+model Wallet {
+  id           Int                 @id @default(autoincrement())
+  userId       Int                 @unique
+  balance      Float               @default(0)
+  currency     String              @default("USD")
+  transactions WalletTransaction[]
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+}
+
+model WalletTransaction {
+  id              Int      @id @default(autoincrement())
+  walletId        Int
+  wallet          Wallet   @relation(fields: [walletId], references: [id])
+  type            String
+  amount          Float
+  balanceAfter    Float
+  description     String?
+  referenceId     String?
+  stripeSessionId String?  @unique
+  status          String   @default("COMPLETED")
+  createdAt       DateTime @default(now())
+
+  @@index([walletId])
+  @@index([type])
+  @@index([createdAt])
+}
+
+model RecentDrop {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  username  String?
+  skinId    Int
+  skin      Skin     @relation(fields: [skinId], references: [id])
+  caseId    Int?
+  caseName  String?
+  price     Float
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+model Order {
+  id          Int         @id @default(autoincrement())
+  userId      Int
+  status      String      @default("PENDING")
+  totalAmount Float
+  notes       String?
+  orderItems  OrderItem[]
+  payment     Payment?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@index([userId])
+  @@index([status])
+}
+
+model OrderItem {
+  id        Int      @id @default(autoincrement())
+  orderId   Int
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  skinId    Int
+  skin      Skin     @relation(fields: [skinId], references: [id])
+  quantity  Int      @default(1)
+  price     Float
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Payment {
+  id              Int      @id @default(autoincrement())
+  orderId         Int      @unique
+  order           Order    @relation(fields: [orderId], references: [id])
+  amount          Float
+  method          String   @default("CARD")
+  status          String   @default("PENDING")
+  transactionId   String?
+  stripeSessionId String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model WishlistItem {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  skinId    Int
+  skin      Skin     @relation(fields: [skinId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, skinId])
+  @@index([userId])
+}
+
+model CartItem {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  skinId    Int
+  skin      Skin     @relation(fields: [skinId], references: [id], onDelete: Cascade)
+  quantity  Int      @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, skinId])
+  @@index([userId])
+}
+
+model RecentlyViewed {
+  id       Int      @id @default(autoincrement())
+  userId   Int
+  skinId   Int
+  skin     Skin     @relation(fields: [skinId], references: [id], onDelete: Cascade)
+  viewedAt DateTime @default(now())
+
+  @@unique([userId, skinId])
+  @@index([userId, viewedAt])
+}
+
+model Battle {
+  id           Int                 @id @default(autoincrement())
+  mode         String              @default("ONE_V_ONE")
+  status       String              @default("WAITING")
+  isPrivate    Boolean             @default(false)
+  inviteCode   String?             @unique
+  maxPlayers   Int                 @default(2)
+  caseId       Int
+  case         Case                @relation(fields: [caseId], references: [id])
+  caseCount    Int                 @default(1)
+  winnerId     Int?
+  totalValue   Float?
+  startedAt    DateTime?
+  completedAt  DateTime?
+  countdownAt  DateTime?
+  participants BattleParticipant[]
+  rounds       BattleRound[]
+  messages     BattleMessage[]
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+
+  @@index([status])
+  @@index([mode])
+  @@index([inviteCode])
+}
+
+model BattleParticipant {
+  id         Int      @id @default(autoincrement())
+  battleId   Int
+  battle     Battle   @relation(fields: [battleId], references: [id], onDelete: Cascade)
+  userId     Int
+  username   String?
+  team       Int      @default(1)
+  totalValue Float    @default(0)
+  isWinner   Boolean  @default(false)
+  joinedAt   DateTime @default(now())
+
+  @@unique([battleId, userId])
+  @@index([userId])
+}
+
+model BattleRound {
+  id          Int      @id @default(autoincrement())
+  battleId    Int
+  battle      Battle   @relation(fields: [battleId], references: [id], onDelete: Cascade)
+  roundNumber Int
+  userId      Int
+  skinId      Int
+  skin        Skin     @relation(fields: [skinId], references: [id])
+  skinValue   Float
+  createdAt   DateTime @default(now())
+
+  @@index([battleId])
+}
+
+model BattleMessage {
+  id        Int      @id @default(autoincrement())
+  battleId  Int
+  battle    Battle   @relation(fields: [battleId], references: [id], onDelete: Cascade)
+  userId    Int
+  username  String?
+  message   String
+  createdAt DateTime @default(now())
+
+  @@index([battleId])
+}
+
+model TradeOffer {
+  id         Int         @id @default(autoincrement())
+  senderId   Int
+  receiverId Int
+  status     String      @default("PENDING")
+  message    String?
+  items      TradeItem[]
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+
+  @@index([senderId])
+  @@index([receiverId])
+  @@index([status])
+}
+
+model TradeItem {
+  id              Int               @id @default(autoincrement())
+  tradeOfferId    Int
+  tradeOffer      TradeOffer        @relation(fields: [tradeOfferId], references: [id], onDelete: Cascade)
+  inventoryItemId Int
+  inventoryItem   UserInventoryItem @relation(fields: [inventoryItemId], references: [id])
+  ownerId         Int
+  skinId          Int
+  skin            Skin              @relation(fields: [skinId], references: [id])
+}
