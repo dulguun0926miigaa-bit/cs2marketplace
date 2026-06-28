@@ -30,13 +30,18 @@ const PAYMENT_METHODS = [
 ];
 
 export default function CheckoutPage() {
-  const { items, total, fetchCart } = useCartStore();
+  const { items, total, fetchCart, isLoading: cartLoading } = useCartStore();
   const { balance, fetchBalance } = useWalletStore();
   const navigate = useNavigate();
   const [notes, setNotes] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('CARD');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  // Card payment fields
+  const [cardNumber, setCardNumber] = useState('');
+  const [cardExpiry, setCardExpiry] = useState('');
+  const [cardCvc, setCardCvc] = useState('');
+  const [cardName, setCardName] = useState('');
 
   useEffect(() => {
     fetchCart();
@@ -47,6 +52,29 @@ export default function CheckoutPage() {
     setLoading(true);
     setError('');
     try {
+      // Card validation for CARD method
+      if (paymentMethod === 'CARD') {
+        if (!cardNumber.replace(/\s/g, '') || cardNumber.replace(/\s/g, '').length < 16) {
+          setError('Картын дугаар буруу байна (16 оронтой)');
+          setLoading(false);
+          return;
+        }
+        if (!cardExpiry || !/^\d{2}\/\d{2}$/.test(cardExpiry)) {
+          setError('Хүчинтэй хугацаа буруу байна (MM/YY)');
+          setLoading(false);
+          return;
+        }
+        if (!cardCvc || cardCvc.length < 3) {
+          setError('CVC код буруу байна');
+          setLoading(false);
+          return;
+        }
+        if (!cardName.trim()) {
+          setError('Картын нэр оруулна уу');
+          setLoading(false);
+          return;
+        }
+      }
       const { data } = await orderService.checkout({ notes });
       const orderId = data.data.order.id;
       await orderService.processPayment(orderId, { method: paymentMethod });
@@ -58,7 +86,16 @@ export default function CheckoutPage() {
     }
   };
 
-  if (items.length === 0) {
+  // Wait for cart to finish loading before deciding to redirect
+  if (cartLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="w-8 h-8 border-2 border-yellow-400 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (!cartLoading && items.length === 0) {
     navigate('/cart');
     return null;
   }
@@ -130,6 +167,73 @@ export default function CheckoutPage() {
                 </p>
               </div>
             )}
+
+            {/* Card form — shown only when CARD is selected */}
+            {!isBalanceMethod && (
+              <div className="mt-4 flex flex-col gap-3">
+                <div>
+                  <label className="text-xs text-gray-400 mb-1 block">Картын дугаар</label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={19}
+                    className="input"
+                    placeholder="0000 0000 0000 0000"
+                    value={cardNumber}
+                    onChange={(e) => {
+                      const raw = e.target.value.replace(/\D/g, '').slice(0, 16);
+                      setCardNumber(raw.replace(/(.{4})/g, '$1 ').trim());
+                    }}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs text-gray-400 mb-1 block">Хүчинтэй хугацаа</label>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={5}
+                      className="input"
+                      placeholder="MM/YY"
+                      value={cardExpiry}
+                      onChange={(e) => {
+                        let v = e.target.value.replace(/\D/g, '').slice(0, 4);
+                        if (v.length >= 3) v = v.slice(0, 2) + '/' + v.slice(2);
+                        setCardExpiry(v);
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-400 mb-1 block">CVC</label>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={4}
+                      className="input"
+                      placeholder="123"
+                      value={cardCvc}
+                      onChange={(e) => setCardCvc(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-xs text-gray-400 mb-1 block">Картын эзэмшигчийн нэр</label>
+                  <input
+                    type="text"
+                    className="input uppercase"
+                    placeholder="JOHN DOE"
+                    value={cardName}
+                    onChange={(e) => setCardName(e.target.value.toUpperCase())}
+                  />
+                </div>
+                <p className="text-xs text-gray-500 flex items-center gap-1.5">
+                  <svg className="w-3.5 h-3.5 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                  </svg>
+                  Demo горим — жинхэнэ картын мэдээлэл шаардахгүй
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Notes */}
@@ -183,7 +287,7 @@ export default function CheckoutPage() {
             disabled={loading || (isBalanceMethod && !hasEnoughBalance)}
             className="btn-primary w-full mt-6 text-lg disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {loading ? 'Боловсруулж байна...' : `$${total} төлөх`}
+            {loading ? 'Боловсруулж байна...' : `$${parseFloat(total).toFixed(2)} төлөх`}
           </button>
         </div>
       </div>

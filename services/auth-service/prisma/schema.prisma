@@ -24,6 +24,8 @@ model User {
   firstName     String?
   lastName      String?
   avatar        String?
+  avatarUrl     String?
+  steamId       String?        @unique
   isActive      Boolean        @default(true)
   isVerified    Boolean        @default(false)
   roleId        Int            @default(2)

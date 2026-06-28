@@ -146,9 +146,18 @@ const skinService = {
     const existingImages = typeof existing.images === 'string'
       ? JSON.parse(existing.images)
       : existing.images;
-    const newImages = files.length > 0
-      ? files.map((f) => `/uploads/${f.filename}`)
-      : existingImages;
+
+    // Honor explicit images list in request body (for reordering / selecting main image)
+    let newImages = existingImages;
+    if (data && data.images) {
+      try {
+        newImages = typeof data.images === 'string' ? JSON.parse(data.images) : data.images;
+      } catch {
+        newImages = existingImages;
+      }
+    } else if (files.length > 0) {
+      newImages = files.map((f) => `/uploads/${f.filename}`);
+    }
 
     const skin = await skinRepository.update(id, { ...data, images: JSON.stringify(newImages) });
     await invalidate('skins:popular', 'skins:latest', `skin:${id}`);

@@ -47,9 +47,12 @@ const WEAPON_GRADIENTS = {
 
 export const getWeaponGradient = (weapon) => WEAPON_GRADIENTS[weapon] || WEAPON_GRADIENTS.default;
 
+const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=900&q=80';
+
 export const getSkinImage = (skin) => {
-  if (!skin) return null;
+  if (!skin) return FALLBACK_IMAGE;
   const images = typeof skin.images === 'string' ? JSON.parse(skin.images || '[]') : skin.images;
   if (images?.length > 0) return images[0];
-  return null;
+  if (skin.imageUrl) return skin.imageUrl;
+  return FALLBACK_IMAGE;
 };

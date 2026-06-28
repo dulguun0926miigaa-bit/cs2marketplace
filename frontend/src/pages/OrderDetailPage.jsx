@@ -15,13 +15,19 @@ export default function OrderDetailPage() {
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [cancelling, setCancelling] = useState(false);
+  const [loadError, setLoadError] = useState('');
+  const [cancelError, setCancelError] = useState('');
 
   const load = async () => {
     setLoading(true);
+    setLoadError('');
     try {
       const { data } = await orderService.getOrderById(id);
       setOrder(data.data.order);
-    } catch { /* ignore */ }
+    } catch (err) {
+      const msg = err.response?.data?.message || 'Захиалга ачааллахад алдаа гарлаа';
+      setLoadError(msg);
+    }
     setLoading(false);
   };
 
@@ -29,27 +35,40 @@ export default function OrderDetailPage() {
 
   const handleCancel = async () => {
     setCancelling(true);
+    setCancelError('');
     try {
       await orderService.cancelOrder(id);
       await load();
-    } catch { /* ignore */ }
+    } catch (err) {
+      setCancelError(err.response?.data?.message || 'Захиалга цуцлахад алдаа гарлаа');
+    }
     setCancelling(false);
   };
 
   if (loading) return <LoadingSpinner size="lg" className="py-40" />;
-  if (!order) return <div className="text-center py-40 text-gray-400">Order not found</div>;
+
+  if (loadError) {
+    return (
+      <div className="text-center py-40">
+        <p className="text-red-400 mb-4">{loadError}</p>
+        <button onClick={load} className="btn-secondary text-sm">Дахин оролдох</button>
+      </div>
+    );
+  }
+
+  if (!order) return <div className="text-center py-40 text-gray-400">Захиалга олдсонгүй</div>;
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-10">
       {isSuccess && (
         <div className="bg-green-900/30 border border-cs2-green text-cs2-green rounded-xl p-4 mb-6 text-center">
-          <p className="text-xl font-bold mb-1">🎉 Payment Successful!</p>
-          <p>Your order has been placed successfully.</p>
+          <p className="text-xl font-bold mb-1">🎉 Төлбөр амжилттай!</p>
+          <p>Таны захиалга амжилттай баталгаажлаа.</p>
         </div>
       )}
 
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">Order #{order.id}</h1>
+        <h1 className="text-2xl font-bold">Захиалга #{order.id}</h1>
         <span className={`font-bold text-lg ${STATUS_COLORS[order.status]}`}>{order.status}</span>
       </div>
 
@@ -94,13 +113,16 @@ export default function OrderDetailPage() {
       )}
 
       <div className="flex gap-3">
-        <Link to="/orders" className="btn-secondary">← Back to Orders</Link>
+        <Link to="/orders" className="btn-secondary">← Захиалгууд руу буцах</Link>
         {['PENDING', 'PROCESSING'].includes(order.status) && (
           <button onClick={handleCancel} disabled={cancelling} className="btn-danger">
-            {cancelling ? 'Cancelling...' : 'Cancel Order'}
+            {cancelling ? 'Цуцалж байна...' : 'Захиалга цуцлах'}
           </button>
         )}
       </div>
+      {cancelError && (
+        <p className="text-red-400 text-sm mt-3">{cancelError}</p>
+      )}
     </div>
   );
 }

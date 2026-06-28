@@ -1,5 +1,4 @@
 import { Link } from 'react-router-dom';
-import { ShoppingCartIcon } from '@heroicons/react/24/outline';
 import useAuthStore from '../../store/authStore';
 import useCartStore from '../../store/cartStore';
 import { getRarityStyle, getSkinDisplayName, getWeaponGradient, getSkinImage } from '../../utils/skinVisuals';
@@ -44,7 +43,7 @@ export default function SkinCard({ skin }) {
           disabled={!skin.isAvailable || skin.stock === 0}
           className="bg-loot-accent hover:bg-white text-black text-xs font-semibold py-1.5 px-3 rounded-lg flex items-center gap-1 disabled:opacity-40 transition-colors"
         >
-          <ShoppingCartIcon className="w-3.5 h-3.5" />
+          🛒
           {skin.stock === 0 ? 'Дууссан' : 'Нэмэх'}
         </button>
       </div>

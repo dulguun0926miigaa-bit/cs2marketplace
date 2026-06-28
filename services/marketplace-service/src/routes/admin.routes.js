@@ -46,14 +46,26 @@ router.delete('/categories/:id', categoryController.delete);
 
 // ─── Cases ────────────────────────────────────────────────────────────────────
 router.get('/cases', caseController.getCases);
-router.post('/cases', async (req, res, next) => {
+router.post('/cases', upload.fields([
+  { name: 'image', maxCount: 1 },
+  { name: 'banner', maxCount: 1 },
+  { name: 'animation', maxCount: 1 },
+]), async (req, res, next) => {
   try {
-    const { name, slug, description, price, collectionId, isFeatured } = req.body;
+    const { name, slug, description, imageUrl, price, collectionId, isFeatured } = req.body;
+    // If files uploaded, prefer stored file paths
+    const imageFile = req.files?.image?.[0];
+    const bannerFile = req.files?.banner?.[0];
+    const animationFile = req.files?.animation?.[0];
+    const basePath = '/uploads';
     const newCase = await prisma.case.create({
       data: {
         name,
         slug: slug || name.toLowerCase().replace(/\s+/g, '-'),
         description: description || null,
+        imageUrl: imageFile ? `${basePath}/${imageFile.filename}` : (imageUrl || null),
+        bannerUrl: bannerFile ? `${basePath}/${bannerFile.filename}` : (req.body.bannerUrl || null),
+        animationUrl: animationFile ? `${basePath}/${animationFile.filename}` : (req.body.animationUrl || null),
         price: parseFloat(price),
         collectionId: collectionId ? parseInt(collectionId, 10) : null,
         isFeatured: isFeatured === true || isFeatured === 'true',
@@ -62,20 +74,70 @@ router.post('/cases', async (req, res, next) => {
     return success(res, { case: newCase }, 'Case created', 201);
   } catch (err) { next(err); }
 });
-router.put('/cases/:id', async (req, res, next) => {
+router.put('/cases/:id', upload.fields([
+  { name: 'image', maxCount: 1 },
+  { name: 'banner', maxCount: 1 },
+  { name: 'animation', maxCount: 1 },
+]), async (req, res, next) => {
   try {
-    const { name, description, price, isFeatured, isActive } = req.body;
+    const { name, description, imageUrl, price, isFeatured, isActive } = req.body;
+    const imageFile = req.files?.image?.[0];
+    const bannerFile = req.files?.banner?.[0];
+    const animationFile = req.files?.animation?.[0];
+    const basePath = '/uploads';
     const updated = await prisma.case.update({
       where: { id: parseInt(req.params.id, 10) },
       data: {
         ...(name && { name }),
         ...(description !== undefined && { description }),
+        ...(imageFile ? { imageUrl: `${basePath}/${imageFile.filename}` } : (imageUrl !== undefined ? { imageUrl: imageUrl || null } : {})),
+        ...(bannerFile ? { bannerUrl: `${basePath}/${bannerFile.filename}` } : (req.body.bannerUrl !== undefined ? { bannerUrl: req.body.bannerUrl || null } : {})),
+        ...(animationFile ? { animationUrl: `${basePath}/${animationFile.filename}` } : (req.body.animationUrl !== undefined ? { animationUrl: req.body.animationUrl || null } : {})),
         ...(price && { price: parseFloat(price) }),
         ...(isFeatured !== undefined && { isFeatured: isFeatured === true || isFeatured === 'true' }),
         ...(isActive !== undefined && { isActive: isActive === true || isActive === 'true' }),
       },
     });
     return success(res, { case: updated }, 'Case updated');
+  } catch (err) { next(err); }
+});
+
+router.delete('/cases/:id', async (req, res, next) => {
+  try {
+    await prisma.case.delete({ where: { id: parseInt(req.params.id, 10) } });
+    return success(res, {}, 'Case deleted successfully');
+  } catch (err) { next(err); }
+});
+
+// Case items (manage skins inside a case)
+router.get('/cases/:id/items', async (req, res, next) => {
+  try {
+    const caseId = parseInt(req.params.id, 10);
+    const caseData = await prisma.case.findUnique({
+      where: { id: caseId },
+      include: { caseItems: { include: { skin: true }, orderBy: { createdAt: 'asc' } } },
+    });
+    return success(res, { items: caseData?.caseItems || [] });
+  } catch (err) { next(err); }
+});
+
+router.post('/cases/:id/items', async (req, res, next) => {
+  try {
+    const { skinId, dropRate } = req.body;
+    const item = await caseController.addCaseItem(req, res, next);
+    return item;
+  } catch (err) { next(err); }
+});
+
+router.put('/cases/:caseId/items/:itemId', async (req, res, next) => {
+  try {
+    await caseController.updateCaseItem(req, res, next);
+  } catch (err) { next(err); }
+});
+
+router.delete('/cases/:caseId/items/:itemId', async (req, res, next) => {
+  try {
+    await caseController.removeCaseItem(req, res, next);
   } catch (err) { next(err); }
 });
 

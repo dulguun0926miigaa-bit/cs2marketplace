@@ -3,7 +3,6 @@ import useAuthStore from '../../store/authStore';
 import useCartStore from '../../store/cartStore';
 import useWalletStore from '../../store/walletStore';
 import { useEffect } from 'react';
-import { ShoppingCartIcon, UserIcon, BellIcon, Bars3Icon } from '@heroicons/react/24/outline';
 import { useState } from 'react';
 
 export default function Navbar() {
@@ -45,6 +44,9 @@ export default function Navbar() {
             {isAdmin() && (
               <Link to="/admin" className="text-cs2-accent hover:text-cs2-accent-hover transition-colors font-medium">Admin</Link>
             )}
+            {isAuthenticated() && (
+              <button onClick={handleLogout} className="text-gray-300 hover:text-white transition-colors">Logout</button>
+            )}
           </div>
 
           {/* Right actions */}
@@ -59,20 +61,26 @@ export default function Navbar() {
             )}
             {isAuthenticated() ? (
               <>
-                <Link to="/cart" className="relative p-2 text-gray-300 hover:text-white">
-                  <ShoppingCartIcon className="w-6 h-6" />
+                <Link to="/cart" className="relative p-2 text-gray-300 hover:text-white text-2xl">
+                  🛒
                   {count > 0 && (
                     <span className="absolute -top-1 -right-1 bg-cs2-accent text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">
                       {count > 9 ? '9+' : count}
                     </span>
                   )}
                 </Link>
-                <Link to="/notifications" className="p-2 text-gray-300 hover:text-white">
-                  <BellIcon className="w-6 h-6" />
+                <Link to="/notifications" className="p-2 text-gray-300 hover:text-white text-2xl">
+                  🔔
                 </Link>
+                <button
+                  onClick={handleLogout}
+                  className="px-3 py-1 rounded-full bg-red-500/10 text-red-300 hover:bg-red-500/20 transition-colors text-sm"
+                >
+                  Logout
+                </button>
                 <div className="relative group">
                   <button className="flex items-center gap-2 p-2 text-gray-300 hover:text-white">
-                    <UserIcon className="w-6 h-6" />
+                    <span className="text-2xl">👤</span>
                     <span className="hidden md:block text-sm">{user?.username}</span>
                   </button>
                   <div className="absolute right-0 mt-2 w-48 bg-cs2-card border border-cs2-border rounded-lg shadow-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none group-hover:pointer-events-auto">
@@ -88,8 +96,8 @@ export default function Navbar() {
               </>
             )}
             {/* Mobile menu */}
-            <button className="md:hidden p-2" onClick={() => setMenuOpen(!menuOpen)}>
-              <Bars3Icon className="w-6 h-6" />
+            <button className="md:hidden p-2 text-2xl" onClick={() => setMenuOpen(!menuOpen)}>
+              ☰
             </button>
           </div>
         </div>
@@ -104,6 +112,15 @@ export default function Navbar() {
               <Link to="/wishlist" className="text-gray-300 hover:text-white" onClick={() => setMenuOpen(false)}>Wishlist</Link>
               <Link to="/orders" className="text-gray-300 hover:text-white" onClick={() => setMenuOpen(false)}>Orders</Link>
               <Link to="/cart" className="text-gray-300 hover:text-white" onClick={() => setMenuOpen(false)}>Сагс ({count})</Link>
+              <button
+                onClick={() => {
+                  setMenuOpen(false);
+                  handleLogout();
+                }}
+                className="text-left text-gray-300 hover:text-white"
+              >
+                Logout
+              </button>
             </>
           )}
         </div>

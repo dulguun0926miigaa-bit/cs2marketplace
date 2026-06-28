@@ -19,6 +19,7 @@ import SkinDetailPage from './pages/SkinDetailPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
+import SteamCallbackPage from './pages/SteamCallbackPage';
 
 // Protected pages
 import CartPage from './pages/CartPage';
@@ -28,6 +29,7 @@ import OrdersPage from './pages/OrdersPage';
 import OrderDetailPage from './pages/OrderDetailPage';
 import ProfilePage from './pages/ProfilePage';
 import NotificationsPage from './pages/NotificationsPage';
+import WalletPage from './pages/WalletPage';
 
 // Admin pages
 import AdminDashboard from './pages/admin/AdminDashboard';
@@ -35,6 +37,10 @@ import AdminSkinsPage from './pages/admin/AdminSkinsPage';
 import AdminOrdersPage from './pages/admin/AdminOrdersPage';
 import AdminUsersPage from './pages/admin/AdminUsersPage';
 import AdminCasesPage from './pages/admin/AdminCasesPage';
+import AdminTransactionsPage from './pages/admin/AdminTransactionsPage';
+import AdminCaseHistoryPage from './pages/admin/AdminCaseHistoryPage';
+import AdminBattlesPage from './pages/admin/AdminBattlesPage';
+import AdminNotificationsPage from './pages/admin/AdminNotificationsPage';
 
 export default function App() {
   return (
@@ -48,7 +54,7 @@ export default function App() {
         <Route path="/battles" element={<BattlesPage />} />
         <Route path="/battles/:id" element={<BattleDetailPage />} />
         <Route path="/trades" element={<ProtectedRoute><TradesPage /></ProtectedRoute>} />
-        <Route path="/deposit" element={<DepositPage />} />
+        <Route path="/deposit" element={<ProtectedRoute><DepositPage /></ProtectedRoute>} />
         <Route path="/faq" element={<FAQPage />} />
 
         {/* Market */}
@@ -57,6 +63,7 @@ export default function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/steam/callback" element={<SteamCallbackPage />} />
 
         {/* Protected */}
         <Route path="/cart" element={<ProtectedRoute><CartPage /></ProtectedRoute>} />
@@ -66,13 +73,18 @@ export default function App() {
         <Route path="/orders/:id" element={<ProtectedRoute><OrderDetailPage /></ProtectedRoute>} />
         <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
         <Route path="/notifications" element={<ProtectedRoute><NotificationsPage /></ProtectedRoute>} />
+        <Route path="/wallet" element={<ProtectedRoute><WalletPage /></ProtectedRoute>} />
 
         {/* Admin */}
         <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
         <Route path="/admin/skins" element={<AdminRoute><AdminSkinsPage /></AdminRoute>} />
+        <Route path="/admin/cases" element={<AdminRoute><AdminCasesPage /></AdminRoute>} />
         <Route path="/admin/orders" element={<AdminRoute><AdminOrdersPage /></AdminRoute>} />
         <Route path="/admin/users" element={<AdminRoute><AdminUsersPage /></AdminRoute>} />
-        <Route path="/admin/cases" element={<AdminRoute><AdminCasesPage /></AdminRoute>} />
+        <Route path="/admin/transactions" element={<AdminRoute><AdminTransactionsPage /></AdminRoute>} />
+        <Route path="/admin/case-history" element={<AdminRoute><AdminCaseHistoryPage /></AdminRoute>} />
+        <Route path="/admin/battles" element={<AdminRoute><AdminBattlesPage /></AdminRoute>} />
+        <Route path="/admin/notifications" element={<AdminRoute><AdminNotificationsPage /></AdminRoute>} />
 
         {/* 404 */}
         <Route path="*" element={

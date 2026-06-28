@@ -184,18 +184,36 @@ const orderService = {
 
   getDashboardStats: async () => {
     return getOrSet('dashboard:stats', async () => {
-      const [sales, totalSkins, totalOrders, recentOrders] = await Promise.all([
+      const [sales, totalSkins, totalOrders, totalCases, totalWallets, totalInventoryItems, totalBattles, totalTransactions, totalCaseOpenings, recentOrders, recentCaseOpens] = await Promise.all([
         orderRepository.salesStats(),
         prisma.skin.count(),
         prisma.order.count(),
+        prisma.case.count(),
+        prisma.wallet.count(),
+        prisma.userInventoryItem.count(),
+        prisma.battle.count(),
+        prisma.walletTransaction.count(),
+        prisma.caseOpeningHistory.count(),
         prisma.order.findMany({ take: 5, orderBy: { createdAt: 'desc' }, include: { orderItems: true } }),
+        prisma.caseOpeningHistory.findMany({
+          take: 5,
+          orderBy: { createdAt: 'desc' },
+          include: { case: true, skin: true },
+        }),
       ]);
       return {
         totalRevenue: sales._sum.totalAmount || 0,
         completedOrders: sales._count.id,
         totalSkins,
         totalOrders,
+        totalCases,
+        totalWallets,
+        totalInventoryItems,
+        totalBattles,
+        totalTransactions,
+        totalCaseOpenings,
         recentOrders,
+        recentCaseOpens,
       };
     }, config.cache.dashboardTtl);
   },

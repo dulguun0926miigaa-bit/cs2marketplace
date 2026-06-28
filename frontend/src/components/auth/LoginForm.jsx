@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import useAuthStore from '../../store/authStore';
 import useCartStore from '../../store/cartStore';
 import useWalletStore from '../../store/walletStore';
 
 export default function LoginForm({ onSuccess, onSwitchRegister }) {
+  const navigate = useNavigate();
   const { login, isLoading, error } = useAuthStore();
   const { fetchCart } = useCartStore();
   const { fetchBalance } = useWalletStore();
@@ -13,11 +14,17 @@ export default function LoginForm({ onSuccess, onSwitchRegister }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     const result = await login(form);
-    if (result.success) {
-      await fetchCart();
-      await fetchBalance();
-      onSuccess?.();
+    if (!result.success) return;
+
+    await fetchCart().catch(() => {});
+    await fetchBalance().catch(() => {});
+
+    if (result.user?.role?.toLowerCase() === 'admin') {
+      navigate('/admin');
+      return;
     }
+
+    onSuccess?.();
   };
 
   return (

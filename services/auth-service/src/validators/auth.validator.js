@@ -58,6 +58,16 @@ const updateProfileValidator = [
   handleValidation,
 ];
 
+const adminUpdateUserValidator = [
+  body('firstName').optional().isLength({ max: 50 }).trim(),
+  body('lastName').optional().isLength({ max: 50 }).trim(),
+  body('avatar').optional().isURL().withMessage('Avatar must be a valid URL'),
+  body('role').optional().isString().trim().isIn(['Admin', 'User']).withMessage('Role must be Admin or User'),
+  body('isActive').optional().isBoolean().withMessage('isActive must be a boolean'),
+  body('isVerified').optional().isBoolean().withMessage('isVerified must be a boolean'),
+  handleValidation,
+];
+
 module.exports = {
   registerValidator,
   loginValidator,
@@ -65,4 +75,5 @@ module.exports = {
   forgotPasswordValidator,
   resetPasswordValidator,
   updateProfileValidator,
+  adminUpdateUserValidator,
 };

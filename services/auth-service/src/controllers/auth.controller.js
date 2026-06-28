@@ -111,6 +111,32 @@ const authController = {
       next(err);
     }
   },
+
+  updateUser: async (req, res, next) => {
+    try {
+      const userId = parseInt(req.params.id, 10);
+      const { firstName, lastName, avatar, role, isActive, isVerified } = req.body;
+      const user = await authService.updateUser(userId, { firstName, lastName, avatar, role, isActive, isVerified });
+      return success(res, { user: userDto(user) }, 'User updated successfully');
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  deleteUser: async (req, res, next) => {
+    try {
+      const userId = parseInt(req.params.id, 10);
+      if (req.user?.id === userId) {
+        const error = new Error('Self-deletion is not allowed');
+        error.statusCode = 400;
+        throw error;
+      }
+      const user = await authService.deactivateUser(userId);
+      return success(res, { user: userDto(user) }, 'User deactivated successfully');
+    } catch (err) {
+      next(err);
+    }
+  },
 };
 
 module.exports = authController;

@@ -6,44 +6,24 @@ const { authLimiter } = require('../middleware/rateLimiter.middleware');
 const { buildProxy } = require('../middleware/proxy.middleware');
 
 // ─── Auth Service Proxy ─────────────────────────────────────────────────────
-// /api/auth/login  →  http://auth-service:3001/login
-const authProxy = buildProxy(config.services.auth, {
-  '^/api/auth': '',
-});
+// Proxy all auth routes to auth-service using the mounted path.
+const authProxy = buildProxy(config.services.auth);
 
 router.use('/api/auth/login', authLimiter);
 router.use('/api/auth/register', authLimiter);
 router.use('/api/auth/forgot-password', authLimiter);
+router.use('/api/auth/steam', authProxy);   // Steam OpenID (public)
 router.use('/api/auth', authProxy);
 
 // ─── Marketplace Service Proxy ──────────────────────────────────────────────
-// /api/marketplace/skins  →  http://marketplace-service:3002/skins
-const marketplaceProxy = buildProxy(config.services.marketplace, {
-  '^/api/marketplace': '',
-});
+// Proxy all marketplace routes to marketplace-service using the mounted path.
+const marketplaceProxy = buildProxy(config.services.marketplace);
 
-// Public
-router.use('/api/marketplace/skins', optionalAuth, marketplaceProxy);
-router.use('/api/marketplace/categories', optionalAuth, marketplaceProxy);
-
-// Protected
-router.use('/api/marketplace/cart', verifyToken, marketplaceProxy);
-router.use('/api/marketplace/wishlist', verifyToken, marketplaceProxy);
-router.use('/api/marketplace/orders', verifyToken, marketplaceProxy);
-router.use('/api/marketplace/checkout', verifyToken, marketplaceProxy);
-router.use('/api/marketplace/wallet', verifyToken, marketplaceProxy);
-router.use('/api/marketplace/inventory', verifyToken, marketplaceProxy);
-router.use('/api/marketplace/battles', optionalAuth, marketplaceProxy);
-router.use('/api/marketplace/trades', verifyToken, marketplaceProxy);
-router.use('/api/marketplace/collections', optionalAuth, marketplaceProxy);
-
-// Cases - public read, open requires token at service level
-router.use('/api/marketplace/cases', optionalAuth, marketplaceProxy);
-
-// Admin marketplace
+// Admin marketplace requires admin auth before forwarding.
 router.use('/api/marketplace/admin', verifyToken, requireAdmin, marketplaceProxy);
 
-// Fallback
+// All other marketplace requests are forwarded to marketplace-service.
+// The downstream service enforces auth/authorization for protected routes.
 router.use('/api/marketplace', optionalAuth, marketplaceProxy);
 
 // ─── Notification Service Proxy ──────────────────────────────────────────────

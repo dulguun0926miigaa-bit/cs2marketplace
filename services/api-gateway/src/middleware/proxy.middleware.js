@@ -8,11 +8,22 @@ const logger = require('../utils/logger');
  */
 const buildProxy = (target, pathRewrite) => {
   let rewriteConfig;
+
   if (typeof pathRewrite === 'string' && pathRewrite) {
     const escaped = pathRewrite.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    rewriteConfig = (p) => p.replace(new RegExp(`^${escaped}`), '') || '/';
+    rewriteConfig = (path) => path.replace(new RegExp(`^${escaped}`), '') || '/';
   } else if (pathRewrite && typeof pathRewrite === 'object') {
-    rewriteConfig = pathRewrite;
+    rewriteConfig = (path) => {
+      let result = path;
+      Object.entries(pathRewrite).forEach(([pattern, replacement]) => {
+        result = result.replace(new RegExp(pattern), replacement);
+      });
+      return result || '/';
+    };
+  } else {
+    // Default rewrite strips the gateway service prefix from /api/<service> paths,
+    // so /api/marketplace/cases becomes /cases for the downstream service.
+    rewriteConfig = (path) => path.replace(/^\/api\/[^/]+/, '') || '/';
   }
 
   return createProxyMiddleware({
@@ -31,7 +42,6 @@ const buildProxy = (target, pathRewrite) => {
         }
       },
       proxyReq: (proxyReq, req) => {
-        // Forward user identity headers extracted from JWT
         if (req.user) {
           proxyReq.setHeader('x-user-id', String(req.user.id || ''));
           proxyReq.setHeader('x-user-email', req.user.email || '');

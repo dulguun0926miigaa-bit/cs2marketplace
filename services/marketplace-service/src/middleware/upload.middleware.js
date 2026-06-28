@@ -15,10 +15,20 @@ const storage = multer.diskStorage({
 });
 
 const fileFilter = (req, file, cb) => {
-  const allowed = /jpeg|jpg|png|gif|webp/;
-  const ext = allowed.test(path.extname(file.originalname).toLowerCase());
-  const mime = allowed.test(file.mimetype);
-  if (ext && mime) return cb(null, true);
+  const imageAllowed = /jpeg|jpg|png|gif|webp/;
+  const ext = path.extname(file.originalname).toLowerCase();
+  // Allow videos for the `animation` field (mp4, webm) and gifs as images
+  if (file.fieldname === 'animation') {
+    const videoAllowed = /\.mp4$|\.webm$|\.gif$/;
+    const isVideoExt = videoAllowed.test(ext);
+    const isVideoMime = file.mimetype.startsWith('video/') || file.mimetype === 'image/gif';
+    if (isVideoExt && isVideoMime) return cb(null, true);
+    return cb(new Error('Only animation files (mp4, webm, gif) are allowed for animation field'));
+  }
+
+  const isImageExt = imageAllowed.test(ext);
+  const isImageMime = imageAllowed.test(file.mimetype);
+  if (isImageExt && isImageMime) return cb(null, true);
   cb(new Error('Only image files are allowed'));
 };
 

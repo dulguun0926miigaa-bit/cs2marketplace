@@ -170,8 +170,64 @@ const caseService = {
       pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
     };
   },
+  getUserStats: async (userId) => {
+    const [totalOpened, history] = await Promise.all([
+      prisma.caseOpeningHistory.count({ where: { userId } }),
+      prisma.caseOpeningHistory.findMany({
+        where: { userId },
+        include: { case: true, skin: true },
+        orderBy: { createdAt: 'desc' },
+      }),
+    ]);
+
+    const totalSpent = history.reduce((s, h) => s + h.price, 0);
+
+    // Highest value drop
+    let highestDrop = null;
+    let highestVal  = 0;
+    for (const h of history) {
+      if (h.skin?.price > highestVal) { highestVal = h.skin.price; highestDrop = parseSkin(h.skin); }
+    }
+
+    // Most opened case
+    const caseCounts = {};
+    for (const h of history) {
+      caseCounts[h.case?.name] = (caseCounts[h.case?.name] || 0) + 1;
+    }
+    const mostOpened = Object.entries(caseCounts).sort((a, b) => b[1] - a[1])[0];
+
+    return {
+      totalOpened,
+      totalSpent: parseFloat(totalSpent.toFixed(2)),
+      highestDrop,
+      mostOpenedCase: mostOpened ? { name: mostOpened[0], count: mostOpened[1] } : null,
+    };
+  },
 };
 
 caseService.pickWeightedItem = pickWeightedItem;
 
 module.exports = caseService;
+
+// Admin helpers for case items
+caseService.addCaseItem = async (caseId, skinId, dropRate = 1) => {
+  const created = await prisma.caseItem.create({
+    data: { caseId: parseInt(caseId, 10), skinId: parseInt(skinId, 10), dropRate: parseFloat(dropRate) },
+    include: { skin: true },
+  });
+  return created;
+};
+
+caseService.updateCaseItem = async (itemId, data) => {
+  const updated = await prisma.caseItem.update({
+    where: { id: parseInt(itemId, 10) },
+    data: { ...(data.dropRate !== undefined && { dropRate: parseFloat(data.dropRate) }) },
+    include: { skin: true },
+  });
+  return updated;
+};
+
+caseService.removeCaseItem = async (itemId) => {
+  const removed = await prisma.caseItem.delete({ where: { id: parseInt(itemId, 10) } });
+  return removed;
+};

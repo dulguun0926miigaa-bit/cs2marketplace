@@ -7,7 +7,6 @@ import useWalletStore from '../store/walletStore';
 import { wishlistService, orderService } from '../services/marketplace.service';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import SkinCard from '../components/skin/SkinCard';
-import { ShoppingCartIcon, HeartIcon, BoltIcon } from '@heroicons/react/24/outline';
 import { getSkinDisplayName } from '../utils/skinVisuals';
 
 const RARITY_COLORS = {
@@ -43,12 +42,24 @@ export default function SkinDetailPage() {
     if (!isAuthenticated()) { navigate('/login'); return; }
     setBuying(true);
     try {
-      await addItem(skin.id, qty);
+      // Fully await addItem (which internally awaits fetchCart) before checkout
+      const addResult = await addItem(skin.id, qty);
+      if (!addResult.success) {
+        setMsg(addResult.message || 'Cart-д нэмэхэд алдаа гарлаа');
+        return;
+      }
+      // Check balance when using BALANCE method
+      const skinPrice = parseFloat(skin.price) * qty;
+      const currentBalance = parseFloat(balance || 0);
+      if (currentBalance < skinPrice) {
+        setMsg(`Данс хүрэлцэхгүй байна. Хэрэгтэй: $${skinPrice.toFixed(2)}, Үлдэгдэл: $${currentBalance.toFixed(2)}`);
+        return;
+      }
       const { data } = await orderService.checkout({});
       const orderId = data.data.order.id;
       await orderService.processPayment(orderId, { method: 'BALANCE' });
-      setMsg(`Order #${orderId} placed!`);
-      fetchBalance();
+      setMsg(`Захиалга #${orderId} амжилттай!`);
+      await fetchBalance();
       navigate(`/orders/${orderId}`);
     } catch (err) {
       setMsg(err.response?.data?.message || 'Purchase failed');
@@ -59,9 +70,14 @@ export default function SkinDetailPage() {
 
   const handleWishlist = async () => {
     if (!isAuthenticated()) { navigate('/login'); return; }
-    const { data } = await wishlistService.toggle(skin.id);
-    setMsg(data.message);
-    setTimeout(() => setMsg(''), 2500);
+    try {
+      const { data } = await wishlistService.toggle(skin.id);
+      setMsg(data.message);
+      setTimeout(() => setMsg(''), 2500);
+    } catch (err) {
+      setMsg(err.response?.data?.message || 'Wishlist алдаа гарлаа');
+      setTimeout(() => setMsg(''), 2500);
+    }
   };
 
   if (isLoading) return <LoadingSpinner size="lg" className="py-40" />;
@@ -154,15 +170,15 @@ export default function SkinDetailPage() {
               <button onClick={() => setQty(Math.min(skin.stock, qty + 1))} className="px-3 py-2 hover:bg-cs2-border">+</button>
             </div>
             <button onClick={handleAddToCart} disabled={!canBuy} className="btn-primary flex items-center gap-2 flex-1 justify-center min-w-[140px]">
-              <ShoppingCartIcon className="w-5 h-5" />
+              🛒
               {canBuy ? 'Add to Cart' : 'Sold Out'}
             </button>
             <button onClick={handleBuyNow} disabled={!canBuy || buying} className="btn-primary flex items-center gap-2 bg-cs2-green hover:bg-green-600 min-w-[140px] justify-center">
-              <BoltIcon className="w-5 h-5" />
+              ⚡
               {buying ? 'Processing...' : 'Buy Now'}
             </button>
             <button onClick={handleWishlist} className="btn-secondary p-3" title="Add to wishlist">
-              <HeartIcon className="w-5 h-5" />
+              ❤️
             </button>
           </div>
 

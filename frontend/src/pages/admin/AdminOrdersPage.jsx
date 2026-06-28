@@ -53,7 +53,7 @@ export default function AdminOrdersPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-loot-muted border-b border-loot-border text-xs uppercase">
-                  {['Order ID', 'User ID', 'Items', 'Нийт', 'Төлөв', 'Төлбөр', 'Огноо'].map((h) => (
+                  {['Order ID', 'User ID', 'Items', 'Нийт', 'Төлөв', 'Төлбөр', 'Огноо', 'Actions'].map((h) => (
                     <th key={h} className="pb-3 pr-4 font-medium">{h}</th>
                   ))}
                 </tr>
@@ -68,6 +68,23 @@ export default function AdminOrdersPage() {
                     <td className={`py-2.5 pr-4 font-semibold ${STATUS_COLORS[o.status]}`}>{o.status}</td>
                     <td className="py-2.5 pr-4 text-loot-muted text-xs">{o.payment?.status || '—'}</td>
                     <td className="py-2.5 text-loot-muted text-xs">{new Date(o.createdAt).toLocaleDateString()}</td>
+                    <td className="py-2.5">
+                      <div className="flex gap-2">
+                        <a href={`/orders/${o.id}`} target="_blank" rel="noopener noreferrer" className="px-2 py-1 text-xs border rounded">View</a>
+                        <select className="loot-input text-xs" defaultValue={o.status} onChange={async (e) => {
+                          const newStatus = e.target.value;
+                          try {
+                            await adminService.updateOrderStatus(o.id, newStatus);
+                            load(page);
+                          } catch (err) { alert(err.response?.data?.message || 'Update failed'); }
+                        }}>
+                          <option value="PENDING">PENDING</option>
+                          <option value="PROCESSING">PROCESSING</option>
+                          <option value="COMPLETED">COMPLETED</option>
+                          <option value="CANCELLED">CANCELLED</option>
+                        </select>
+                      </div>
+                    </td>
                   </tr>
                 ))}
                 {orders.length === 0 && (

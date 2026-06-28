@@ -63,8 +63,14 @@ export const adminService = {
 
   // Cases
   getAdminCases: () => api.get('/marketplace/admin/cases'),
-  createCase: (data) => api.post('/marketplace/admin/cases', data),
-  updateCase: (id, data) => api.put(`/marketplace/admin/cases/${id}`, data),
+  createCase: (data) => api.post('/marketplace/admin/cases', data, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  updateCase: (id, data) => api.put(`/marketplace/admin/cases/${id}`, data, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  deleteCase: (id) => api.delete(`/marketplace/admin/cases/${id}`),
+  // Case items
+  getCaseItems: (caseId) => api.get(`/marketplace/admin/cases/${caseId}/items`),
+  addCaseItem: (caseId, skinId, dropRate) => api.post(`/marketplace/admin/cases/${caseId}/items`, { skinId, dropRate }),
+  updateCaseItem: (caseId, itemId, dropRate) => api.put(`/marketplace/admin/cases/${caseId}/items/${itemId}`, { dropRate }),
+  deleteCaseItem: (caseId, itemId) => api.delete(`/marketplace/admin/cases/${caseId}/items/${itemId}`),
 
   // Transactions & History
   getTransactions: (params) => api.get('/marketplace/admin/transactions', { params }),
@@ -74,6 +80,12 @@ export const adminService = {
   // Users (via auth-service)
   getUsers: (params) => api.get('/auth/admin/users', { params }),
   getUserById: (id) => api.get(`/auth/admin/users/${id}`),
+  updateUser: (id, data) => api.put(`/auth/admin/users/${id}`, data),
+  deleteUser: (id) => api.delete(`/auth/admin/users/${id}`),
+  // Notifications (admin)
+  getNotifications: (params) => api.get('/notification', { params }),
+  sendNotification: (data) => api.post('/notification', data),
+  deleteNotification: (id) => api.delete(`/notification/${id}`),
 };
 
 export const notificationService = {
@@ -87,6 +99,8 @@ export const caseService = {
   getCaseBySlug: (slug) => api.get(`/marketplace/cases/${slug}`),
   getRecentDrops: (limit = 20) => api.get('/marketplace/cases/drops/recent', { params: { limit } }),
   openCase: (slug) => api.post(`/marketplace/cases/${slug}/open`),
+  getHistory: (params) => api.get('/marketplace/cases/history/me', { params }),
+  getStats: () => api.get('/marketplace/cases/stats/me'),
 };
 
 export const walletService = {

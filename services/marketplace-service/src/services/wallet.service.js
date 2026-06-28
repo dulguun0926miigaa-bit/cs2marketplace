@@ -14,10 +14,13 @@ const getPendingKey = (sessionId) => `${PENDING_DEPOSIT_PREFIX}${sessionId}`;
 
 const savePendingDeposit = async (sessionId, data) => {
   const payload = JSON.stringify(data);
-  // Try Redis
-  if (redis) {
+  // Try Redis with a short timeout
+  if (redis && redis.status === 'ready') {
     try {
-      await redis.setex(getPendingKey(sessionId), PENDING_DEPOSIT_TTL, payload);
+      await Promise.race([
+        redis.setex(getPendingKey(sessionId), PENDING_DEPOSIT_TTL, payload),
+        new Promise((_, rej) => setTimeout(() => rej(new Error('Redis timeout')), 500)),
+      ]);
       return data;
     } catch { /* fall through to DB */ }
   }
@@ -42,10 +45,13 @@ const savePendingDeposit = async (sessionId, data) => {
 };
 
 const getPendingDeposit = async (sessionId) => {
-  // Try Redis
-  if (redis) {
+  // Try Redis with a short timeout
+  if (redis && redis.status === 'ready') {
     try {
-      const cached = await redis.get(getPendingKey(sessionId));
+      const cached = await Promise.race([
+        redis.get(getPendingKey(sessionId)),
+        new Promise((_, rej) => setTimeout(() => rej(new Error('Redis timeout')), 500)),
+      ]);
       if (cached) return JSON.parse(cached);
     } catch { /* fall through to DB */ }
   }
@@ -62,7 +68,7 @@ const getPendingDeposit = async (sessionId) => {
 };
 
 const deletePendingDeposit = async (sessionId) => {
-  if (redis) {
+  if (redis && redis.status === 'ready') {
     await redis.del(getPendingKey(sessionId)).catch(() => {});
   }
   // Clean up DB fallback row (ignore if already gone)

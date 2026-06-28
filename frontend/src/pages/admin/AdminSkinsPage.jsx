@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { adminService, categoryService } from '../../services/marketplace.service';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import Pagination from '../../components/common/Pagination';
-import { PencilIcon, TrashIcon, PlusIcon, XMarkIcon } from '@heroicons/react/24/outline';
 
 const RARITIES = ['CONSUMER', 'INDUSTRIAL', 'MIL_SPEC', 'RESTRICTED', 'CLASSIFIED', 'COVERT', 'CONTRABAND'];
 const EXTERIORS = ['FACTORY_NEW', 'MINIMAL_WEAR', 'FIELD_TESTED', 'WELL_WORN', 'BATTLE_SCARRED'];
@@ -23,6 +22,8 @@ export default function AdminSkinsPage() {
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(EMPTY);
+  const [files, setFiles] = useState([]);
+  const [editingImages, setEditingImages] = useState([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -42,7 +43,7 @@ export default function AdminSkinsPage() {
 
   useEffect(() => { load(page); }, [page, search]);
 
-  const openCreate = () => { setEditing(null); setForm(EMPTY); setError(''); setShowModal(true); };
+  const openCreate = () => { setEditing(null); setForm(EMPTY); setFiles([]); setError(''); setShowModal(true); };
   const openEdit = (skin) => {
     setEditing(skin);
     setForm({
@@ -52,6 +53,14 @@ export default function AdminSkinsPage() {
       isAvailable: skin.isAvailable, isStatTrak: skin.isStatTrak, isSouvenir: skin.isSouvenir,
       lore: skin.lore || '',
     });
+    setFiles([]);
+    // prepare editable images array
+    try {
+      const imgs = Array.isArray(skin.images) ? skin.images : JSON.parse(skin.images || '[]');
+      setEditingImages(imgs);
+    } catch {
+      setEditingImages([]);
+    }
     setError('');
     setShowModal(true);
   };
@@ -63,6 +72,12 @@ export default function AdminSkinsPage() {
     try {
       const fd = new FormData();
       Object.entries(form).forEach(([k, v]) => fd.append(k, v));
+      // If user uploaded new files, send them. Otherwise allow sending edited images order.
+      if (files.length > 0) {
+        files.forEach((file) => fd.append('images', file));
+      } else if (editing && Array.isArray(editingImages)) {
+        fd.append('images', JSON.stringify(editingImages));
+      }
       if (editing) await adminService.updateSkin(editing.id, fd);
       else await adminService.createSkin(fd);
       setShowModal(false);
@@ -85,7 +100,7 @@ export default function AdminSkinsPage() {
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Skin Удирдах</h1>
         <button onClick={openCreate} className="btn-loot-primary flex items-center gap-2 text-sm">
-          <PlusIcon className="w-4 h-4" /> Skin нэмэх
+          + Skin нэмэх
         </button>
       </div>
 
@@ -105,43 +120,48 @@ export default function AdminSkinsPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-loot-muted border-b border-loot-border text-xs uppercase">
-                  {['ID', 'Нэр', 'Зэвсэг', 'Ховор зэрэг', 'Гадна', 'Үнэ', 'Нөөц', 'StatTrak', 'Боломжтой', ''].map((h) => (
+                  {['ID', 'Image', 'Name', 'Weapon', 'Collection', 'Rarity', 'Price', 'Stock', 'Status', 'Actions'].map((h) => (
                     <th key={h} className="pb-3 pr-4 font-medium">{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {skins.map((skin) => (
-                  <tr key={skin.id} className="border-b border-loot-border/40 hover:bg-loot-surface transition-colors">
-                    <td className="py-2.5 pr-4 text-loot-muted">#{skin.id}</td>
-                    <td className="py-2.5 pr-4 font-medium max-w-[160px] truncate">{skin.name}</td>
-                    <td className="py-2.5 pr-4 text-loot-muted">{skin.weapon}</td>
-                    <td className="py-2.5 pr-4 text-xs">{skin.rarity?.replace('_', ' ')}</td>
-                    <td className="py-2.5 pr-4 text-xs text-loot-muted">{skin.exterior?.replace(/_/g, ' ')}</td>
-                    <td className="py-2.5 pr-4 text-loot-gold font-bold">${parseFloat(skin.price).toFixed(2)}</td>
-                    <td className="py-2.5 pr-4">{skin.stock}</td>
-                    <td className="py-2.5 pr-4">
-                      <span className={skin.isStatTrak ? 'text-orange-400 text-xs' : 'text-loot-muted text-xs'}>
-                        {skin.isStatTrak ? 'ST™' : '—'}
-                      </span>
-                    </td>
-                    <td className="py-2.5 pr-4">
-                      <span className={`px-2 py-0.5 rounded-full text-xs ${skin.isAvailable ? 'bg-green-900/30 text-green-400' : 'bg-red-900/30 text-red-400'}`}>
-                        {skin.isAvailable ? 'Тийм' : 'Үгүй'}
-                      </span>
-                    </td>
-                    <td className="py-2.5">
-                      <div className="flex gap-1">
-                        <button onClick={() => openEdit(skin)} className="p-1.5 hover:text-white text-loot-muted transition-colors">
-                          <PencilIcon className="w-4 h-4" />
-                        </button>
-                        <button onClick={() => handleDelete(skin.id)} className="p-1.5 hover:text-red-400 text-loot-muted transition-colors">
-                          <TrashIcon className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                {skins.map((skin) => {
+                  let thumb = null;
+                  try {
+                    if (Array.isArray(skin.images) && skin.images.length > 0) thumb = skin.images[0];
+                    else if (typeof skin.images === 'string') {
+                      const arr = JSON.parse(skin.images || '[]');
+                      if (arr.length > 0) thumb = arr[0];
+                    }
+                  } catch (e) { thumb = null; }
+                  return (
+                    <tr key={skin.id} className="border-b border-loot-border/40 hover:bg-loot-surface transition-colors">
+                      <td className="py-2.5 pr-4 text-loot-muted">#{skin.id}</td>
+                      <td className="py-2.5 pr-4">
+                        {thumb ? <img src={thumb} alt="thumb" className="w-12 h-8 object-cover rounded" /> : <div className="w-12 h-8 bg-loot-surface rounded" />}
+                      </td>
+                      <td className="py-2.5 pr-4 font-medium max-w-[160px] truncate">{skin.name}</td>
+                      <td className="py-2.5 pr-4 text-loot-muted">{skin.weapon}</td>
+                      <td className="py-2.5 pr-4 text-loot-muted text-xs">{skin.collection || '—'}</td>
+                      <td className="py-2.5 pr-4 text-xs">{skin.rarity?.replace('_', ' ')}</td>
+                      <td className="py-2.5 pr-4 text-loot-gold font-bold">${parseFloat(skin.price).toFixed(2)}</td>
+                      <td className="py-2.5 pr-4">{skin.stock}</td>
+                      <td className="py-2.5 pr-4">
+                        <span className={`px-2 py-0.5 rounded-full text-xs ${skin.isAvailable ? 'bg-green-900/30 text-green-400' : 'bg-red-900/30 text-red-400'}`}>
+                          {skin.isAvailable ? 'Active' : 'Inactive'}
+                        </span>
+                      </td>
+                      <td className="py-2.5">
+                        <div className="flex gap-1">
+                          <a href={`/skins/${skin.id}`} target="_blank" rel="noopener noreferrer" className="p-1.5 hover:text-white text-loot-muted">🔍</a>
+                          <button onClick={() => openEdit(skin)} className="p-1.5 hover:text-white text-loot-muted transition-colors">✎</button>
+                          <button onClick={() => handleDelete(skin.id)} className="p-1.5 hover:text-red-400 text-loot-muted transition-colors">🗑</button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
                 {skins.length === 0 && (
                   <tr><td colSpan="10" className="text-center text-loot-muted py-10">Skin олдсонгүй</td></tr>
                 )}
@@ -160,7 +180,7 @@ export default function AdminSkinsPage() {
               <div className="flex justify-between items-center mb-5">
                 <h2 className="text-lg font-bold">{editing ? 'Skin засах' : 'Шинэ Skin нэмэх'}</h2>
                 <button onClick={() => setShowModal(false)} className="text-loot-muted hover:text-white">
-                  <XMarkIcon className="w-5 h-5" />
+                  ✕
                 </button>
               </div>
 
@@ -226,7 +246,46 @@ export default function AdminSkinsPage() {
                   <textarea className="loot-input resize-none" rows={2} value={form.lore} onChange={(e) => f('lore', e.target.value)} />
                 </div>
 
-                <div className="col-span-2 flex gap-6">
+                {editing && Array.isArray(editingImages) && editingImages.length > 0 && (
+                  <div className="col-span-2">
+                    <label className="text-xs text-loot-muted block mb-1">Одоогийн зураг (үлдсэн дараалал дээр ажиллана)</label>
+                    <div className="flex flex-wrap gap-2">
+                      {editingImages.map((img, index) => (
+                        <div key={index} className="relative">
+                          <img src={img} alt={`skin-${index}`} className="w-24 h-24 object-cover rounded-lg border border-loot-border" />
+                          <div className="absolute left-1 top-1 flex gap-1">
+                            <button type="button" onClick={() => {
+                              // set as main (move to front)
+                              setEditingImages((prev) => {
+                                const next = [...prev];
+                                const [item] = next.splice(index, 1);
+                                next.unshift(item);
+                                return next;
+                              });
+                            }} className="text-xs bg-black/40 px-1 rounded">Main</button>
+                            <button type="button" onClick={() => setEditingImages((prev) => prev.filter((_, i) => i !== index))} className="text-xs bg-black/40 px-1 rounded">Remove</button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="col-span-2">
+                  <label className="text-xs text-loot-muted block mb-1">Зураг (шинэ бичлэг нэмэх)</label>
+                  <input
+                    type="file"
+                    className="loot-input"
+                    accept="image/*"
+                    multiple
+                    onChange={(e) => setFiles(Array.from(e.target.files))}
+                  />
+                  {files.length > 0 && (
+                    <p className="text-xs text-loot-muted mt-2">{files.length} файлыг сонгосон</p>
+                  )}
+                </div>
+
+                <div className="col-span-2 flex gap-3 pt-2">
                   <label className="flex items-center gap-2 text-sm cursor-pointer">
                     <input type="checkbox" className="accent-white w-4 h-4" checked={form.isAvailable} onChange={(e) => f('isAvailable', e.target.checked)} />
                     <span>Боломжтой</span>

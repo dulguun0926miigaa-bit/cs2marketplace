@@ -4,7 +4,8 @@
   "description": "CS2 Skin Marketplace - Full Stack Microservice Application",
   "private": true,
   "scripts": {
-    "dev": "concurrently --kill-others-on-fail --names \"GATEWAY,AUTH,MARKET,NOTIFY,FRONTEND\" --prefix-colors \"cyan,yellow,green,magenta,blue\" \"npm run dev --prefix services/api-gateway\" \"npm run dev --prefix services/auth-service\" \"npm run dev --prefix services/marketplace-service\" \"npm run dev --prefix services/notification-service\" \"npm run dev --prefix frontend\"",
+    "predev": "node -e \"const {execSync}=require('child_process');[3000,3001,3002,3003].forEach(p=>{try{const r=execSync('netstat -ano | findstr :'+p,{encoding:'utf8'});const m=r.match(/LISTENING\\s+(\\d+)/);if(m)execSync('taskkill /PID '+m[1]+' /F',{stdio:'ignore'})}catch{}})\"",
+    "dev": "concurrently --kill-others --names \"GATEWAY,AUTH,MARKET,NOTIFY,FRONTEND\" --prefix-colors \"cyan,yellow,green,magenta,blue\" \"npm run dev --prefix services/api-gateway\" \"npm run dev --prefix services/auth-service\" \"npm run dev --prefix services/marketplace-service\" \"npm run dev --prefix services/notification-service\" \"npm run dev --prefix frontend\"",
     "install:all": "npm install && npm install --prefix frontend && npm install --prefix services/api-gateway && npm install --prefix services/auth-service && npm install --prefix services/marketplace-service && npm install --prefix services/notification-service",
     "infra:up": "docker compose -f docker-compose.infra.yml up -d",
     "infra:down": "docker compose -f docker-compose.infra.yml down",

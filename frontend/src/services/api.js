@@ -13,7 +13,7 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Handle 401 – attempt token refresh for protected requests only
+// Handle 401 – attempt silent token refresh
 api.interceptors.response.use(
   (res) => res,
   async (error) => {
@@ -31,14 +31,27 @@ api.interceptors.response.use(
       try {
         const refreshToken = localStorage.getItem('refreshToken');
         if (!refreshToken) throw new Error('No refresh token');
+
         const { data } = await axios.post('/api/auth/refresh', { refreshToken });
-        localStorage.setItem('accessToken', data.data.accessToken);
-        localStorage.setItem('refreshToken', data.data.refreshToken);
-        original.headers.Authorization = `Bearer ${data.data.accessToken}`;
+        const newAccess  = data.data.accessToken;
+        const newRefresh = data.data.refreshToken;
+
+        // Persist new tokens
+        localStorage.setItem('accessToken',  newAccess);
+        localStorage.setItem('refreshToken', newRefresh);
+
+        // Notify the Zustand auth store without a circular import —
+        // the store subscribes to this custom event in authStore.js
+        window.dispatchEvent(new CustomEvent('auth:token-refreshed', {
+          detail: { accessToken: newAccess, refreshToken: newRefresh },
+        }));
+
+        original.headers.Authorization = `Bearer ${newAccess}`;
         return api(original);
       } catch (refreshError) {
         localStorage.removeItem('accessToken');
         localStorage.removeItem('refreshToken');
+        window.dispatchEvent(new CustomEvent('auth:logout'));
         window.location.href = '/login';
         return Promise.reject(refreshError);
       }

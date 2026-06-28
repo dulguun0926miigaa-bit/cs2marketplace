@@ -46,6 +46,33 @@ const userRepository = {
   },
 
   /**
+   * Find user by steamId
+   */
+  findBySteamId: (steamId) =>
+    prisma.user.findFirst({
+      where: { steamId },
+      include: { role: true },
+    }),
+
+  /**
+   * Find role by name
+   */
+  findRoleByName: (name) =>
+    prisma.role.findFirst({
+      where: { name: { equals: name, mode: 'insensitive' } },
+    }),
+
+  /**
+   * Update user by id (alias)
+   */
+  updateById: (id, data) =>
+    prisma.user.update({
+      where: { id },
+      data,
+      include: { role: true },
+    }),
+
+  /**
    * Update user by id
    */
   update: (id, data) =>
@@ -62,6 +89,7 @@ const userRepository = {
     prisma.user.update({
       where: { id },
       data: { isActive: false },
+      include: { role: true },
     }),
 
   /**

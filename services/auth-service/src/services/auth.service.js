@@ -175,6 +175,38 @@ const authService = {
     return userRepository.update(userId, data);
   },
 
+  updateUser: async (userId, data) => {
+    const updateData = { ...data };
+    if (typeof updateData.role === 'string') {
+      const roleRecord = await userRepository.findRoleByName(updateData.role);
+      if (!roleRecord) {
+        const err = new Error('Role not found');
+        err.statusCode = 400;
+        throw err;
+      }
+      updateData.roleId = roleRecord.id;
+      delete updateData.role;
+    }
+
+    const user = await userRepository.update(userId, updateData);
+    if (!user) {
+      const err = new Error('User not found');
+      err.statusCode = 404;
+      throw err;
+    }
+    return user;
+  },
+
+  deactivateUser: async (userId) => {
+    const user = await userRepository.deactivate(userId);
+    if (!user) {
+      const err = new Error('User not found');
+      err.statusCode = 404;
+      throw err;
+    }
+    return user;
+  },
+
   listUsers: async ({ page = 1, limit = 20, search = '' } = {}) => {
     const skip = (page - 1) * limit;
     const [users, total] = await Promise.all([

@@ -79,11 +79,16 @@ export default function HomePage() {
                 className="loot-card overflow-hidden group hover:border-loot-muted transition-all"
               >
                 <div className={`aspect-square bg-gradient-to-b ${CASE_GRADIENTS[i % CASE_GRADIENTS.length]} flex items-center justify-center p-4 group-hover:scale-[1.02] transition-transform`}>
-                  <div className="w-20 h-16 bg-gradient-to-b from-gray-600 to-gray-800 rounded-lg border border-loot-border relative shadow-lg">
-                    <div className="absolute inset-x-2 top-2 h-0.5 bg-white/20 rounded" />
-                    <div className="absolute inset-x-3 top-4 h-0.5 bg-white/10 rounded" />
-                    <div className="absolute bottom-2 left-2 right-2 h-1 bg-loot-gold/30 rounded" />
-                  </div>
+                  <img
+                    src={caseItem.imageUrl || 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=900&q=80'}
+                    alt={caseItem.name}
+                    className="w-full h-full object-cover rounded-lg border border-white/10"
+                    loading="lazy"
+                    onError={(e) => {
+                      e.currentTarget.onerror = null;
+                      e.currentTarget.src = 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=900&q=80';
+                    }}
+                  />
                 </div>
                 <div className="p-3 border-t border-loot-border">
                   <p className="font-semibold text-sm truncate">{caseItem.name}</p>
