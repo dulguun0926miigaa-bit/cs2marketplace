@@ -6,6 +6,7 @@ const categoryController = require('../controllers/category.controller');
 const caseController = require('../controllers/case.controller');
 const { fromGateway, verifyToken, requireAdmin } = require('../middleware/auth.middleware');
 const upload = require('../middleware/upload.middleware');
+const { createSkinValidator, updateSkinValidator } = require('../validators/skin.validator');
 const prisma = require('../config/prisma');
 const { success, paginated } = require('../utils/response');
 
@@ -34,8 +35,8 @@ router.patch('/orders/:id/status', async (req, res, next) => {
 
 // ─── Skins ────────────────────────────────────────────────────────────────────
 router.get('/skins', skinController.getAll);
-router.post('/skins', upload.array('images', 5), skinController.create);
-router.put('/skins/:id', upload.array('images', 5), skinController.update);
+router.post('/skins', upload.array('images', 5), createSkinValidator, skinController.create);
+router.put('/skins/:id', upload.array('images', 5), updateSkinValidator, skinController.update);
 router.delete('/skins/:id', skinController.delete);
 
 // ─── Categories ───────────────────────────────────────────────────────────────

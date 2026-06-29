@@ -56,11 +56,27 @@ export default function DepositPage() {
     }
   };
 
-  const handleCardNext = () => {
+  const handleCardNext = async () => {
     const err = validateCard();
     if (err) { setCardError(err); return; }
     setCardError('');
-    handleCreateDeposit();
+    setLoading(true);
+    setError('');
+
+    const result = await createDeposit(amount, 'CARD');
+    if (result.success) {
+      const confirmResult = await confirmDeposit(result.session.sessionId);
+      if (confirmResult.success) {
+        await fetchBalance();
+        setStep('success');
+      } else {
+        setError(confirmResult.message || 'Төлбөр баталгаажуулж чадсангүй');
+      }
+    } else {
+      setError(result.message || 'Төлбөр үүсгэхэд алдаа гарлаа');
+    }
+
+    setLoading(false);
   };
 
   const handleCreateDeposit = async () => {
@@ -235,6 +251,10 @@ export default function DepositPage() {
               <span className="text-loot-gold font-bold text-lg">${parseFloat(amount).toFixed(2)}</span>
             </div>
 
+            <p className="text-loot-muted text-sm mb-4">
+              Картын мэдээллээ оруулаад “Төлбөр хийх” дарвал данс шууд цэнэглэгдэнэ.
+            </p>
+
             <div className="space-y-4">
               {/* Card number */}
               <div>
@@ -328,7 +348,7 @@ export default function DepositPage() {
             {error && <p className="text-red-400 text-sm mb-3">{error}</p>}
 
             <button onClick={handleCardNext} disabled={loading} className="btn-loot-primary w-full mb-3">
-              {loading ? 'Боловсруулж байна...' : `$${parseFloat(amount).toFixed(2)} төлөх`}
+              {loading ? 'Боловсруулж байна...' : `$${parseFloat(amount).toFixed(2)} төлбөр хийх`}
             </button>
             <button onClick={reset} className="btn-loot-secondary w-full text-sm">Буцах</button>
           </div>
@@ -337,7 +357,8 @@ export default function DepositPage() {
         {/* ── SELECT AMOUNT & METHOD ────────────────────────────────────── */}
         {step === 'select' && (
           <div className="loot-card p-6">
-            <h2 className="font-bold mb-4">Дүн сонгох</h2>
+            <h2 className="font-bold mb-2">Secure checkout</h2>
+            <p className="text-loot-muted text-sm mb-4">Картын мэдээллээ оруулаад дансаа шууд цэнэглээрэй.</p>
 
             {/* Preset amounts */}
             <div className="grid grid-cols-3 gap-2 mb-4">

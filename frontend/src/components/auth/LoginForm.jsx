@@ -20,11 +20,11 @@ export default function LoginForm({ onSuccess, onSwitchRegister }) {
     await fetchBalance().catch(() => {});
 
     if (result.user?.role?.toLowerCase() === 'admin') {
-      navigate('/admin');
+      onSuccess?.({ ...result.user, role: 'admin' });
       return;
     }
 
-    onSuccess?.();
+    onSuccess?.(result.user);
   };
 
   return (

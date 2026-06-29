@@ -5,8 +5,8 @@ export const skinService = {
   getById: (id) => api.get(`/marketplace/skins/${id}`),
   getPopular: () => api.get('/marketplace/skins/popular'),
   getLatest: () => api.get('/marketplace/skins/latest'),
-  create: (data) => api.post('/marketplace/skins', data, { headers: { 'Content-Type': 'multipart/form-data' } }),
-  update: (id, data) => api.put(`/marketplace/skins/${id}`, data, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  create: (data) => api.post('/marketplace/skins', data),
+  update: (id, data) => api.put(`/marketplace/skins/${id}`, data),
   delete: (id) => api.delete(`/marketplace/skins/${id}`),
 };
 
@@ -51,8 +51,8 @@ export const adminService = {
 
   // Skins
   getAdminSkins: (params) => api.get('/marketplace/admin/skins', { params }),
-  createSkin: (data) => api.post('/marketplace/admin/skins', data, { headers: { 'Content-Type': 'multipart/form-data' } }),
-  updateSkin: (id, data) => api.put(`/marketplace/admin/skins/${id}`, data, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  createSkin: (data) => api.post('/marketplace/admin/skins', data),
+  updateSkin: (id, data) => api.put(`/marketplace/admin/skins/${id}`, data),
   deleteSkin: (id) => api.delete(`/marketplace/admin/skins/${id}`),
 
   // Categories
@@ -63,8 +63,8 @@ export const adminService = {
 
   // Cases
   getAdminCases: () => api.get('/marketplace/admin/cases'),
-  createCase: (data) => api.post('/marketplace/admin/cases', data, { headers: { 'Content-Type': 'multipart/form-data' } }),
-  updateCase: (id, data) => api.put(`/marketplace/admin/cases/${id}`, data, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  createCase: (data) => api.post('/marketplace/admin/cases', data),
+  updateCase: (id, data) => api.put(`/marketplace/admin/cases/${id}`, data),
   deleteCase: (id) => api.delete(`/marketplace/admin/cases/${id}`),
   // Case items
   getCaseItems: (caseId) => api.get(`/marketplace/admin/cases/${caseId}/items`),

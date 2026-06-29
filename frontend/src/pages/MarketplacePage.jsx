@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { FunnelIcon } from '@heroicons/react/24/outline';
 import useSkinStore from '../store/skinStore';
 import SkinCard from '../components/skin/SkinCard';
 import Pagination from '../components/common/Pagination';

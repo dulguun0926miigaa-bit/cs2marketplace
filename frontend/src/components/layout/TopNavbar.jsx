@@ -1,4 +1,4 @@
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useEffect } from 'react';
 import useAuthStore from '../../store/authStore';
 import useWalletStore from '../../store/walletStore';
@@ -26,12 +26,20 @@ function SteamBadge() {
 
 export default function TopNavbar() {
   const navigate = useNavigate();
-  const { isAuthenticated, isAdmin, logout } = useAuthStore();
-  const { balance, fetchBalance } = useWalletStore();
+  const location = useLocation();
+  const authPages = ['/login', '/register', '/forgot-password', '/steam/callback'];
+  const hideNavbar = authPages.includes(location.pathname);
+  const isAuthenticated = useAuthStore((state) => Boolean(state.accessToken));
+  const isAdmin = useAuthStore((state) => state.user?.role?.toLowerCase() === 'admin');
+  const logout = useAuthStore((state) => state.logout);
+  const balance = useWalletStore((state) => state.balance);
+  const fetchBalance = useWalletStore((state) => state.fetchBalance);
 
   useEffect(() => {
-    if (isAuthenticated()) fetchBalance();
+    if (isAuthenticated) fetchBalance();
   }, [isAuthenticated, fetchBalance]);
+
+  if (hideNavbar) return null;
 
   const handleLogout = async () => {
     await logout();
@@ -54,23 +62,21 @@ export default function TopNavbar() {
 
         {/* Nav links */}
         <div className="hidden md:flex items-center gap-6 flex-1 justify-center">
-          <Link to="/"           className="text-sm font-medium text-white hover:text-yellow-400 transition-colors">НҮҮР</Link>
-          <Link to="/cases"      className="text-sm font-medium text-gray-400 hover:text-white transition-colors">КЕЙС</Link>
+          <Link to="/" className="text-sm font-medium text-white hover:text-yellow-400 transition-colors">НҮҮР</Link>
+          <Link to="/cases" className="text-sm font-medium text-gray-400 hover:text-white transition-colors">КЕЙС</Link>
           <Link to="/marketplace" className="text-sm font-medium text-gray-400 hover:text-white transition-colors">ДЭЛГҮҮР</Link>
-          <Link to="/faq"        className="text-sm font-medium text-gray-400 hover:text-white transition-colors">FAQ</Link>
-          {isAuthenticated() && isAdmin() && (
+          <Link to="/faq" className="text-sm font-medium text-gray-400 hover:text-white transition-colors">FAQ</Link>
+          {isAuthenticated && isAdmin && (
             <Link to="/admin" className="text-sm font-medium text-cs2-accent hover:text-white transition-colors">Admin</Link>
           )}
         </div>
 
         {/* Right side */}
         <div className="flex items-center gap-2 shrink-0">
-          {/* Steam badge */}
           <SteamBadge />
-
           <CartButton />
 
-          {isAuthenticated() ? (
+          {isAuthenticated ? (
             <>
               <Link
                 to="/deposit"
@@ -89,10 +95,12 @@ export default function TopNavbar() {
               </button>
             </>
           ) : (
-            <div className="flex items-center gap-2">
-              <Link to="/login"    className="text-sm text-gray-400 hover:text-white transition-colors px-2">Нэвтрэх</Link>
-              <Link to="/register" className="btn-loot-primary text-xs py-1.5 px-3">Бүртгүүлэх</Link>
-            </div>
+            location.pathname !== '/login' && location.pathname !== '/register' && (
+              <div className="flex items-center gap-2">
+                <Link to="/login" className="text-sm text-gray-400 hover:text-white transition-colors px-2">Нэвтрэх</Link>
+                <Link to="/register" className="btn-loot-primary text-xs py-1.5 px-3">Бүртгүүлэх</Link>
+              </div>
+            )
           )}
         </div>
       </div>

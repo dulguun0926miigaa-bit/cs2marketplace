@@ -12,14 +12,25 @@ const handle = (req, res, next) => {
   next();
 };
 
-const RARITIES = ['CONSUMER', 'INDUSTRIAL', 'MIL_SPEC', 'RESTRICTED', 'CLASSIFIED', 'COVERT', 'CONTRABAND'];
+const RARITIES = ['CONSUMER', 'INDUSTRIAL', 'MIL_SPEC', 'RESTRICTED', 'CLASSIFIED', 'COVERT', 'CONTRABAND', 'EXTRAORDINARY'];
 const EXTERIORS = ['FACTORY_NEW', 'MINIMAL_WEAR', 'FIELD_TESTED', 'WELL_WORN', 'BATTLE_SCARRED'];
+
+const normalizeEnum = (value) => {
+  if (typeof value !== 'string') return value;
+  return value.trim().replace(/\s+/g, '_').toUpperCase();
+};
 
 const createSkinValidator = [
   body('name').notEmpty().isLength({ max: 255 }).trim().withMessage('Name is required (max 255)'),
   body('weapon').notEmpty().isLength({ max: 100 }).trim().withMessage('Weapon is required'),
-  body('rarity').isIn(RARITIES).withMessage(`Rarity must be one of: ${RARITIES.join(', ')}`),
-  body('exterior').isIn(EXTERIORS).withMessage(`Exterior must be one of: ${EXTERIORS.join(', ')}`),
+  body('rarity')
+    .customSanitizer(normalizeEnum)
+    .isIn(RARITIES)
+    .withMessage(`Rarity must be one of: ${RARITIES.join(', ')}`),
+  body('exterior')
+    .customSanitizer(normalizeEnum)
+    .isIn(EXTERIORS)
+    .withMessage(`Exterior must be one of: ${EXTERIORS.join(', ')}`),
   body('float').isFloat({ min: 0, max: 1 }).withMessage('Float must be between 0 and 1'),
   body('price').isDecimal({ decimal_digits: '0,2' }).withMessage('Price must be a valid decimal'),
   body('stock').isInt({ min: 0 }).withMessage('Stock must be a non-negative integer'),
@@ -28,13 +39,19 @@ const createSkinValidator = [
 ];
 
 const updateSkinValidator = [
-  body('name').optional().isLength({ max: 255 }).trim(),
-  body('weapon').optional().isLength({ max: 100 }).trim(),
-  body('rarity').optional().isIn(RARITIES),
-  body('exterior').optional().isIn(EXTERIORS),
-  body('float').optional().isFloat({ min: 0, max: 1 }),
-  body('price').optional().isDecimal({ decimal_digits: '0,2' }),
-  body('stock').optional().isInt({ min: 0 }),
+  body('name').optional({ checkFalsy: true }).isLength({ max: 255 }).trim(),
+  body('weapon').optional({ checkFalsy: true }).isLength({ max: 100 }).trim(),
+  body('rarity')
+    .optional({ checkFalsy: true })
+    .customSanitizer(normalizeEnum)
+    .isIn(RARITIES),
+  body('exterior')
+    .optional({ checkFalsy: true })
+    .customSanitizer(normalizeEnum)
+    .isIn(EXTERIORS),
+  body('float').optional({ checkFalsy: true }).isFloat({ min: 0, max: 1 }),
+  body('price').optional({ checkFalsy: true }).isDecimal({ decimal_digits: '0,2' }),
+  body('stock').optional({ checkFalsy: true }).isInt({ min: 0 }),
   handle,
 ];
 

@@ -1,3 +1,4 @@
+const crypto = require('node:crypto');
 const jwt = require('jsonwebtoken');
 const config = require('../config');
 
@@ -18,6 +19,7 @@ const generateRefreshToken = (payload) => {
   return jwt.sign(payload, config.jwt.refreshSecret, {
     expiresIn: config.jwt.refreshExpiresIn,
     issuer: 'cs2-auth-service',
+    jwtid: crypto.randomBytes(16).toString('hex'),
   });
 };
 

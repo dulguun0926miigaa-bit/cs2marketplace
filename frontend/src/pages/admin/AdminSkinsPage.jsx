@@ -3,7 +3,7 @@ import { adminService, categoryService } from '../../services/marketplace.servic
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import Pagination from '../../components/common/Pagination';
 
-const RARITIES = ['CONSUMER', 'INDUSTRIAL', 'MIL_SPEC', 'RESTRICTED', 'CLASSIFIED', 'COVERT', 'CONTRABAND'];
+const RARITIES = ['CONSUMER', 'INDUSTRIAL', 'MIL_SPEC', 'RESTRICTED', 'CLASSIFIED', 'COVERT', 'CONTRABAND', 'EXTRAORDINARY'];
 const EXTERIORS = ['FACTORY_NEW', 'MINIMAL_WEAR', 'FIELD_TESTED', 'WELL_WORN', 'BATTLE_SCARRED'];
 
 const EMPTY = {
@@ -24,6 +24,7 @@ export default function AdminSkinsPage() {
   const [form, setForm] = useState(EMPTY);
   const [files, setFiles] = useState([]);
   const [editingImages, setEditingImages] = useState([]);
+  const [newImageUrl, setNewImageUrl] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -43,7 +44,7 @@ export default function AdminSkinsPage() {
 
   useEffect(() => { load(page); }, [page, search]);
 
-  const openCreate = () => { setEditing(null); setForm(EMPTY); setFiles([]); setError(''); setShowModal(true); };
+  const openCreate = () => { setEditing(null); setForm(EMPTY); setFiles([]); setEditingImages([]); setNewImageUrl(''); setError(''); setShowModal(true); };
   const openEdit = (skin) => {
     setEditing(skin);
     setForm({
@@ -54,6 +55,7 @@ export default function AdminSkinsPage() {
       lore: skin.lore || '',
     });
     setFiles([]);
+    setNewImageUrl('');
     // prepare editable images array
     try {
       const imgs = Array.isArray(skin.images) ? skin.images : JSON.parse(skin.images || '[]');
@@ -72,8 +74,9 @@ export default function AdminSkinsPage() {
     try {
       const fd = new FormData();
       Object.entries(form).forEach(([k, v]) => fd.append(k, v));
-      // If user uploaded new files, send them. Otherwise allow sending edited images order.
-      if (files.length > 0) {
+      if (newImageUrl) {
+        fd.append('images', JSON.stringify([newImageUrl]));
+      } else if (files.length > 0) {
         files.forEach((file) => fd.append('images', file));
       } else if (editing && Array.isArray(editingImages)) {
         fd.append('images', JSON.stringify(editingImages));
@@ -83,7 +86,12 @@ export default function AdminSkinsPage() {
       setShowModal(false);
       load(page);
     } catch (err) {
-      setError(err.response?.data?.message || 'Save failed');
+      const response = err.response?.data;
+      if (response?.errors && Array.isArray(response.errors)) {
+        setError(response.errors.map((e) => `${e.field}: ${e.message}`).join(' / '));
+      } else {
+        setError(response?.message || 'Save failed');
+      }
     }
     setSaving(false);
   };
@@ -143,7 +151,7 @@ export default function AdminSkinsPage() {
                       </td>
                       <td className="py-2.5 pr-4 font-medium max-w-[160px] truncate">{skin.name}</td>
                       <td className="py-2.5 pr-4 text-loot-muted">{skin.weapon}</td>
-                      <td className="py-2.5 pr-4 text-loot-muted text-xs">{skin.collection || '—'}</td>
+                      <td className="py-2.5 pr-4 text-loot-muted text-xs">{(typeof skin.collection === 'object' && skin.collection !== null) ? skin.collection.name : (skin.collection || '—')}</td>
                       <td className="py-2.5 pr-4 text-xs">{skin.rarity?.replace('_', ' ')}</td>
                       <td className="py-2.5 pr-4 text-loot-gold font-bold">${parseFloat(skin.price).toFixed(2)}</td>
                       <td className="py-2.5 pr-4">{skin.stock}</td>
@@ -272,7 +280,21 @@ export default function AdminSkinsPage() {
                 )}
 
                 <div className="col-span-2">
-                  <label className="text-xs text-loot-muted block mb-1">Зураг (шинэ бичлэг нэмэх)</label>
+                  <label className="text-xs text-loot-muted block mb-1">Шинэ зураг URL</label>
+                  <input
+                    className="loot-input"
+                    placeholder="https://example.com/image.jpg"
+                    value={newImageUrl}
+                    onChange={(e) => setNewImageUrl(e.target.value)}
+                  />
+                  <p className="text-xs text-loot-muted mt-2">Тус URL-г оруулж байгаа тохиолдолд файл upload хийх шаардлагагүй.</p>
+                  {newImageUrl && (
+                    <img src={newImageUrl} alt="preview" className="mt-3 w-full max-w-xs h-40 object-cover rounded border border-loot-border" />
+                  )}
+                </div>
+
+                <div className="col-span-2">
+                  <label className="text-xs text-loot-muted block mb-1">Файл upload (зөвхөн шаардлагатай бол)</label>
                   <input
                     type="file"
                     className="loot-input"

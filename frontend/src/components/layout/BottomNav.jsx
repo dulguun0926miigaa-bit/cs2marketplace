@@ -9,6 +9,8 @@ const NAV_ITEMS = [
 
 export default function BottomNav() {
   const location = useLocation();
+  const authPages = ['/login', '/register', '/forgot-password', '/steam/callback'];
+  if (authPages.includes(location.pathname)) return null;
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-40 bg-loot-bg border-t border-loot-border safe-area-pb">

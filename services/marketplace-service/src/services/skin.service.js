@@ -128,7 +128,9 @@ const skinService = {
   },
 
   create: async (data, files = []) => {
-    const images = files.map((f) => `/uploads/${f.filename}`);
+    const images = files.length > 0
+      ? files.map((f) => `/uploads/${f.filename}`)
+      : (data.images ? (typeof data.images === 'string' ? JSON.parse(data.images) : data.images) : []);
     const skinData = { ...data, images: JSON.stringify(images) };
     const skin = await skinRepository.create(skinData);
     await invalidate('skins:popular', 'skins:latest');
@@ -155,7 +157,9 @@ const skinService = {
       } catch {
         newImages = existingImages;
       }
-    } else if (files.length > 0) {
+    }
+
+    if (files.length > 0) {
       newImages = files.map((f) => `/uploads/${f.filename}`);
     }
 

@@ -3,10 +3,12 @@ import TopNavbar from '../components/layout/TopNavbar';
 import BottomNav from '../components/layout/BottomNav';
 import useAuthStore from '../store/authStore';
 
-const STANDALONE_PATHS = ['/', '/inventory', '/battles', '/deposit', '/faq', '/cases'];
+const STANDALONE_PATHS = ['/', '/inventory', '/battles', '/deposit', '/faq', '/cases', '/login', '/register', '/forgot-password', '/steam/callback'];
 
 export default function MainLayout() {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { logout } = useAuthStore();
   const isStandalone = STANDALONE_PATHS.includes(location.pathname)
     || location.pathname.startsWith('/cases/')
     || location.pathname.startsWith('/battles/');
@@ -17,8 +19,6 @@ export default function MainLayout() {
 
   // Admin pages get minimal layout (no bottom nav)
   const isAdmin = location.pathname.startsWith('/admin');
-  const { logout } = useAuthStore();
-  const navigate = useNavigate();
 
   const handleAdminLogout = async () => {
     await logout();

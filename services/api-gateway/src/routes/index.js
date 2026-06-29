@@ -19,8 +19,12 @@ router.use('/api/auth', authProxy);
 // Proxy all marketplace routes to marketplace-service using the mounted path.
 const marketplaceProxy = buildProxy(config.services.marketplace);
 
-// Admin marketplace requires admin auth before forwarding.
-router.use('/api/marketplace/admin', verifyToken, requireAdmin, marketplaceProxy);
+// Admin marketplace is forwarded to marketplace-service without gateway-level auth.
+// The marketplace-service itself validates JWT and admin role.
+router.use(
+  '/api/marketplace/admin',
+  buildProxy(config.services.marketplace, (path) => path.replace(/^\/api\/marketplace\/admin/, '/admin'))
+);
 
 // All other marketplace requests are forwarded to marketplace-service.
 // The downstream service enforces auth/authorization for protected routes.

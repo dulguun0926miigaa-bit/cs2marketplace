@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { adminService } from '../../services/marketplace.service';
+import { adminService, caseService, skinService } from '../../services/marketplace.service';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 
 const STATUS_COLORS = {
@@ -44,25 +44,74 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [recentUsers, setRecentUsers] = useState([]);
   const [recentTransactions, setRecentTransactions] = useState([]);
+  const [recentSkins, setRecentSkins] = useState([]);
+  const [recentCases, setRecentCases] = useState([]);
+  const [recentNotifications, setRecentNotifications] = useState([]);
 
   const safeStats = stats;
   const safeUserStats = userStats;
 
   useEffect(() => {
-    Promise.all([
-      adminService.getDashboard(),
-      adminService.getUserStats(),
-      adminService.getUsers({ page: 1, limit: 5 }),
-      adminService.getTransactions({ page: 1, limit: 5 }),
-    ])
-      .then(([dashRes, userRes, usersRes, txRes]) => {
-        setStats(dashRes.data.data);
-        setUserStats(userRes.data.data);
-        setRecentUsers(usersRes.data?.data || []);
-        setRecentTransactions(txRes.data?.data || []);
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
+    const loadDashboard = async () => {
+      setLoading(true);
+      try {
+        const [dashRes, userRes, usersRes, txRes, skinsRes, casesRes, notificationsRes] = await Promise.all([
+          adminService.getDashboard(),
+          adminService.getUserStats(),
+          adminService.getUsers({ page: 1, limit: 5 }),
+          adminService.getTransactions({ page: 1, limit: 5 }),
+          adminService.getAdminSkins({ page: 1, limit: 5, search: '' }),
+          adminService.getAdminCases(),
+          adminService.getNotifications({ page: 1, limit: 5 }),
+        ]);
+
+        const dashboardData = dashRes?.data?.data || {};
+        const userStatsData = userRes?.data?.data || {};
+        const usersData = usersRes?.data?.data || [];
+        const transactionsData = txRes?.data?.data || [];
+        const notificationData = notificationsRes?.data?.data || [];
+        const adminSkinsData = Array.isArray(skinsRes?.data?.data)
+          ? skinsRes.data.data
+          : Array.isArray(skinsRes?.data?.data?.skins)
+          ? skinsRes.data.data.skins
+          : [];
+        const adminCasesData = casesRes?.data?.data?.cases || casesRes?.data?.data || [];
+
+        let finalSkins = adminSkinsData;
+        if (!finalSkins.length) {
+          try {
+            const fallbackSkins = await skinService.getAll({ page: 1, limit: 5, sortBy: 'createdAt', sortOrder: 'desc' });
+            finalSkins = fallbackSkins.data?.data?.skins || [];
+          } catch (err) {
+            finalSkins = [];
+          }
+        }
+
+        let finalCases = adminCasesData;
+        if (!finalCases.length) {
+          try {
+            const fallbackCases = await caseService.getCases({ page: 1, limit: 5 });
+            finalCases = fallbackCases.data?.data?.cases || [];
+          } catch (err) {
+            finalCases = [];
+          }
+        }
+
+        setStats(dashboardData);
+        setUserStats(userStatsData);
+        setRecentUsers(usersData);
+        setRecentTransactions(transactionsData);
+        setRecentSkins(finalSkins);
+        setRecentCases(finalCases);
+        setRecentNotifications(notificationData);
+      } catch (err) {
+        console.error('Admin dashboard load failed', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadDashboard();
   }, []);
 
   if (loading) return <LoadingSpinner size="lg" className="py-40" />;
@@ -160,12 +209,8 @@ export default function AdminDashboard() {
         {[
           { to: '/admin/skins', icon: '🔫', label: 'Skin удирдах' },
           { to: '/admin/cases', icon: '🎁', label: 'Кейс удирдах' },
-          { to: '/admin/orders', icon: '📦', label: 'Захиалга удирдах' },
           { to: '/admin/users', icon: '👥', label: 'Хэрэглэгч удирдах' },
-          { to: '/admin/transactions', icon: '💳', label: 'Транзакц' },
-          { to: '/admin/case-history', icon: '🕘', label: 'Кейс нээлт' },
-          { to: '/admin/battles', icon: '⚔️', label: 'Battles' },
-            { to: '/admin/notifications', icon: '🔔', label: 'Notifications' },
+          { to: '/admin/notifications', icon: '🔔', label: 'Notifications' },
         ].map((item) => (
           <Link
             key={item.to}
@@ -178,78 +223,107 @@ export default function AdminDashboard() {
         ))}
       </div>
 
-      {/* Recent Orders Table */}
-      <div className="loot-card p-5 mb-6">
-        <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-3 mb-4">
-          <div>
-            <h2 className="font-bold">Сүүлийн захиалгууд</h2>
-            <p className="text-loot-muted text-xs">Хамгийн сүүлд орсон захиалгууд</p>
+      {/* Recent Cards */}
+      <div className="grid md:grid-cols-2 gap-4 mb-8">
+        <div className="loot-card p-5">
+          <div className="flex justify-between items-center mb-4">
+            <div>
+              <h2 className="font-bold">Сүүлийн Skin-үүд</h2>
+              <p className="text-loot-muted text-xs">Сүүлийн нэмэгдсэн эсвэл шинэчлэгдсэн skins</p>
+            </div>
+            <Link to="/admin/skins" className="text-xs text-loot-muted hover:text-white">Бүгдийг харах →</Link>
           </div>
-          <Link to="/admin/orders" className="text-xs text-loot-muted hover:text-white">Бүгдийг харах →</Link>
+          {!recentSkins.length ? (
+            <p className="text-loot-muted text-sm py-4 text-center">Skin байхгүй</p>
+          ) : (
+            <div className="space-y-3">
+              {recentSkins.map((skin) => (
+                <div key={skin.id} className="flex items-center gap-3">
+                  <div className="w-14 h-10 rounded overflow-hidden bg-loot-surface">
+                    {skin.images?.[0] ? <img src={skin.images[0]} alt={skin.name} className="w-full h-full object-cover" /> : null}
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-semibold truncate">{skin.name}</p>
+                    <p className="text-xs text-loot-muted">{skin.weapon} · ${parseFloat(skin.price).toFixed(2)}</p>
+                  </div>
+                  <span className="text-xs text-loot-muted">#{skin.id}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
-        {!stats?.recentOrders?.length ? (
-          <p className="text-loot-muted text-sm py-4 text-center">Захиалга байхгүй</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-left text-loot-muted border-b border-loot-border text-xs uppercase">
-                  <th className="pb-2 pr-4">ID</th>
-                  <th className="pb-2 pr-4">Нийт</th>
-                  <th className="pb-2 pr-4">Төлөв</th>
-                  <th className="pb-2">Огноо</th>
-                </tr>
-              </thead>
-              <tbody>
-                {stats?.recentOrders?.map((o) => (
-                  <tr key={o.id} className="border-b border-loot-border/50 hover:bg-loot-surface transition-colors">
-                    <td className="py-2 pr-4 text-loot-muted">#{o.id}</td>
-                    <td className="py-2 pr-4 text-loot-gold font-bold">${parseFloat(o.totalAmount).toFixed(2)}</td>
-                    <td className={`py-2 pr-4 font-medium ${STATUS_COLORS[o.status]}`}>{o.status}</td>
-                    <td className="py-2 text-loot-muted">{new Date(o.createdAt).toLocaleDateString()}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        <div className="loot-card p-5">
+          <div className="flex justify-between items-center mb-4">
+            <div>
+              <h2 className="font-bold">Сүүлийн Кейсүүд</h2>
+              <p className="text-loot-muted text-xs">Сүүлийн нэмэгдсэн кейсүүд</p>
+            </div>
+            <Link to="/admin/cases" className="text-xs text-loot-muted hover:text-white">Бүгдийг харах →</Link>
           </div>
-        )}
+          {!recentCases.length ? (
+            <p className="text-loot-muted text-sm py-4 text-center">Кейс байхгүй</p>
+          ) : (
+            <div className="space-y-3">
+              {recentCases.map((c) => (
+                <div key={c.id} className="flex items-center gap-3">
+                  <div className="w-14 h-10 rounded overflow-hidden bg-loot-surface">
+                    {c.imageUrl ? <img src={c.imageUrl} alt={c.name} className="w-full h-full object-cover" /> : null}
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-semibold truncate">{c.name}</p>
+                    <p className="text-xs text-loot-muted">${parseFloat(c.price).toFixed(2)} · {c.isFeatured ? 'Featured' : 'Standard'}</p>
+                  </div>
+                  <span className="text-xs text-loot-muted">#{c.id}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
-      <div className="loot-card p-5 mb-6">
-        <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-3 mb-4">
-          <div>
-            <h2 className="font-bold">Сүүлийн кейс нээлтүүд</h2>
-            <p className="text-loot-muted text-xs">Өнгөрсөн хамгийн сүүлд нээгдсэн кейсүүд</p>
+
+      <div className="grid md:grid-cols-2 gap-4 mb-8">
+        <div className="loot-card p-5">
+          <div className="flex justify-between items-center mb-4">
+            <div>
+              <h2 className="font-bold">Сүүлийн хэрэглэгчид</h2>
+              <p className="text-loot-muted text-xs">Хэдхэн минутын өмнөх бүртгэлүүд</p>
+            </div>
+            <Link to="/admin/users" className="text-xs text-loot-muted hover:text-white">Бүгдийг харах →</Link>
           </div>
-          <Link to="/admin/case-history" className="text-xs text-loot-muted hover:text-white">Бүгдийг харах →</Link>
+          {!recentUsers.length ? (
+            <p className="text-loot-muted text-sm py-4 text-center">Хэрэглэгч байхгүй</p>
+          ) : (
+            <div className="space-y-2 text-sm">
+              {recentUsers.map((u) => (
+                <div key={u.id} className="flex justify-between items-center">
+                  <div className="truncate">{u.username} <span className="text-loot-muted text-xs">{u.email}</span></div>
+                  <div className="text-loot-muted text-xs">{new Date(u.createdAt).toLocaleDateString()}</div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
-        {!stats?.recentCaseOpens?.length ? (
-          <p className="text-loot-muted text-sm py-4 text-center">Кейс нээлт байхгүй</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-left text-loot-muted border-b border-loot-border text-xs uppercase">
-                  <th className="pb-2 pr-4">ID</th>
-                  <th className="pb-2 pr-4">Хэрэглэгч</th>
-                  <th className="pb-2 pr-4">Кейс</th>
-                  <th className="pb-2 pr-4">Skin</th>
-                  <th className="pb-2">Огноо</th>
-                </tr>
-              </thead>
-              <tbody>
-                {stats?.recentCaseOpens?.map((item) => (
-                  <tr key={item.id} className="border-b border-loot-border/50 hover:bg-loot-surface transition-colors">
-                    <td className="py-2 pr-4 text-loot-muted">#{item.id}</td>
-                    <td className="py-2 pr-4 text-loot-muted">#{item.userId}</td>
-                    <td className="py-2 pr-4 font-medium">{item.case?.name || '—'}</td>
-                    <td className="py-2 pr-4 text-loot-muted">{item.skin?.name || '—'}</td>
-                    <td className="py-2 text-loot-muted">{new Date(item.createdAt).toLocaleDateString()}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        <div className="loot-card p-5">
+          <div className="flex justify-between items-center mb-4">
+            <div>
+              <h2 className="font-bold">Сүүлийн Notifications</h2>
+              <p className="text-loot-muted text-xs">Сүүлд илгээгдсэн мэдэгдлүүд</p>
+            </div>
+            <Link to="/admin/notifications" className="text-xs text-loot-muted hover:text-white">Бүгдийг харах →</Link>
           </div>
-        )}
+          {!recentNotifications.length ? (
+            <p className="text-loot-muted text-sm py-4 text-center">Notification байхгүй</p>
+          ) : (
+            <div className="space-y-2 text-sm">
+              {recentNotifications.map((n) => (
+                <div key={n.id} className="flex justify-between items-center">
+                  <div className="truncate"><span className="font-semibold">{n.title}</span> - {n.message}</div>
+                  <div className="text-loot-muted text-xs">{new Date(n.createdAt).toLocaleDateString()}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Recent Users & Transactions */}

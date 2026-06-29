@@ -39,7 +39,16 @@ const skinController = {
 
   create: async (req, res, next) => {
     try {
-      const data = { ...req.body, categoryId: parseInt(req.body.categoryId, 10), price: parseFloat(req.body.price), float: parseFloat(req.body.float || 0), stock: parseInt(req.body.stock, 10) || 0, isAvailable: req.body.isAvailable !== 'false' };
+      const data = {
+        ...req.body,
+        categoryId: parseInt(req.body.categoryId, 10),
+        price: parseFloat(req.body.price),
+        float: parseFloat(req.body.float || 0),
+        stock: parseInt(req.body.stock, 10) || 0,
+        isAvailable: req.body.isAvailable === 'true' || req.body.isAvailable === true,
+        isStatTrak: req.body.isStatTrak === 'true' || req.body.isStatTrak === true,
+        isSouvenir: req.body.isSouvenir === 'true' || req.body.isSouvenir === true,
+      };
       const skin = await skinService.create(data, req.files || []);
       return created(res, { skin }, 'Skin created successfully');
     } catch (err) { next(err); }
@@ -52,6 +61,9 @@ const skinController = {
       if (data.float) data.float = parseFloat(data.float);
       if (data.stock) data.stock = parseInt(data.stock, 10);
       if (data.categoryId) data.categoryId = parseInt(data.categoryId, 10);
+      if (data.isAvailable !== undefined) data.isAvailable = data.isAvailable === 'true' || data.isAvailable === true;
+      if (data.isStatTrak !== undefined) data.isStatTrak = data.isStatTrak === 'true' || data.isStatTrak === true;
+      if (data.isSouvenir !== undefined) data.isSouvenir = data.isSouvenir === 'true' || data.isSouvenir === true;
       const skin = await skinService.update(parseInt(req.params.id, 10), data, req.files || []);
       return success(res, { skin }, 'Skin updated successfully');
     } catch (err) { next(err); }

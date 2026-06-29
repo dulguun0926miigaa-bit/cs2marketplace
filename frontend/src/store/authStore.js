@@ -2,6 +2,21 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { authService } from '../services/auth.service';
 
+const decodeTokenUser = (token) => {
+  if (!token) return null;
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    return {
+      id: payload.id,
+      email: payload.email,
+      username: payload.username,
+      role: payload.role,
+    };
+  } catch {
+    return null;
+  }
+};
+
 const useAuthStore = create(
   persist(
     (set, get) => ({
@@ -97,20 +112,44 @@ const useAuthStore = create(
         accessToken: state.accessToken,
         refreshToken: state.refreshToken,
       }),
-      onRehydrateStorage: () => (state, error) => {
-        if (error) return;
-        useAuthStore.setState({ isHydrated: true });
+      onRehydrateStorage: () => (persistedState, error) => {
+        const persisted = persistedState || {};
+        const fallbackUser = persisted.accessToken && !persisted.user
+          ? decodeTokenUser(persisted.accessToken)
+          : null;
+
+        useAuthStore.setState({
+          isHydrated: true,
+          user: persisted.user || fallbackUser || null,
+          accessToken: persisted.accessToken || null,
+          refreshToken: persisted.refreshToken || null,
+          isAuthenticated: () => !!useAuthStore.getState().accessToken,
+          isAdmin: () => typeof useAuthStore.getState().user?.role === 'string' && useAuthStore.getState().user.role.toLowerCase() === 'admin',
+        });
       },
     }
   )
 );
+
+if (typeof window !== 'undefined') {
+  const persistedKey = 'zustand/cs2-auth';
+  const hasPersistedAuth = window.localStorage.getItem(persistedKey) !== null;
+  if (!hasPersistedAuth) {
+    useAuthStore.setState({ isHydrated: true });
+  }
+}
 
 // Listen for token refresh / logout events dispatched by the API interceptor
 // This avoids a circular import between api.js ↔ authStore.js
 if (typeof window !== 'undefined') {
   window.addEventListener('auth:token-refreshed', (e) => {
     const { accessToken, refreshToken } = e.detail;
-    useAuthStore.setState({ accessToken, refreshToken });
+    const decodedUser = decodeTokenUser(accessToken);
+    useAuthStore.setState({
+      user: decodedUser || useAuthStore.getState().user,
+      accessToken,
+      refreshToken,
+    });
   });
   window.addEventListener('auth:logout', () => {
     useAuthStore.setState({ user: null, accessToken: null, refreshToken: null });

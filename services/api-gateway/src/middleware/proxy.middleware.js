@@ -12,6 +12,8 @@ const buildProxy = (target, pathRewrite) => {
   if (typeof pathRewrite === 'string' && pathRewrite) {
     const escaped = pathRewrite.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     rewriteConfig = (path) => path.replace(new RegExp(`^${escaped}`), '') || '/';
+  } else if (typeof pathRewrite === 'function') {
+    rewriteConfig = (path) => pathRewrite(path) || '/';
   } else if (pathRewrite && typeof pathRewrite === 'object') {
     rewriteConfig = (path) => {
       let result = path;

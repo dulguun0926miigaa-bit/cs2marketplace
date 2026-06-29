@@ -3,13 +3,18 @@ import axios from 'axios';
 const api = axios.create({
   baseURL: '/api',
   timeout: 15000,
-  headers: { 'Content-Type': 'application/json' },
 });
 
 // Attach JWT token to every request
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('accessToken');
   if (token) config.headers.Authorization = `Bearer ${token}`;
+
+  // Let the browser set multipart boundaries for FormData requests.
+  if (!(config.data instanceof FormData)) {
+    config.headers['Content-Type'] = 'application/json';
+  }
+
   return config;
 });
 
