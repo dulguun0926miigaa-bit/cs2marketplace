@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: 'https://cs2-api-gateway.onrender.com/api',
   timeout: 15000,
 });
 
