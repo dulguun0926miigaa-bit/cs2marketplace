@@ -1,14 +1,15 @@
 FROM node:20-alpine
 
 WORKDIR /app
-
 COPY package*.json ./
-RUN npm ci --only=production
 
-COPY . .
+RUN npm install
+
+COPY prisma ./prisma
 
 # Generate Prisma client with the SQLite schema (build-time)
 RUN npx prisma generate
+COPY . .
 
 EXPOSE 3001
 
